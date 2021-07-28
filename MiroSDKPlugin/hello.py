@@ -1,12 +1,21 @@
 from flask import Flask, render_template, jsonify, request
-
-
 app = Flask(__name__)
 
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
+
+data = 2
 
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/sidebar.html')
+def sidebar():
+    return render_template('sidebar.html')
+
+@app.route('/toolbar.html')
+def toolbar():
+    return render_template('toolbar.html')
 
 def createLine(widgets):
     if len(widgets['widgets'])>=2:
@@ -24,7 +33,7 @@ def test1():
     # POST request
     if request.method == 'POST':
         print(request.get_json())
-        return createLine(request.get_json()), 200
+        return '', 200
 
     # GET request
     else:
