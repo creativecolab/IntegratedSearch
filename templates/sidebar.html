@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    .scrollable-container {
+      height: 100%;
+      overflow-y: auto;
+    }
+
+    .scrollable-content {
+      height: auto;
+    }
+
+    #list {
+      background-color: white;
+      list-style-type: none;
+      padding-left: 20px;
+      margin-top: 8px;
+    }
+
+    .lineItem, .circleItem {
+      white-space: normal;
+      position: relative;
+      /* vertical-align: middle; */
+      display:block;
+    }
+
+    .card {
+      border-radius: 4px;
+      padding-top: 16px;
+      padding-left: 8px;
+      padding-bottom: 16px;
+      padding-right: 8px;
+      border: 1px solid grey;
+      width: 85%;
+      display: inline-block;
+      position: absolute;
+      top: 50%;
+      -ms-transform: translateY(-50%);
+      transform: translateY(-50%);
+      word-wrap: break-word;
+    }
+
+    .buttons {
+      float: right;
+      vertical-align: middle;
+    }
+
+    .search {
+      color: black;
+      display: block;
+      padding: 0;
+    }
+
+    .reject {
+      display: block;
+      padding-right: 4px;
+      padding-left: 4px;
+    }
+
+    .accept {
+      padding-right: 4px;
+      padding-left: 4px;
+    }
+
+    .iconDot {
+      font-size: 60px;
+      color: black;
+      vertical-align: middle;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+
+    .iconLine {
+      font-size: 40px;
+      color: black;
+      vertical-align: middle;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+
+    .iconDiv {
+      display: inline-block;
+      margin-right: 5px;
+    }
+
+    .text {
+      margin: 0;
+      vertical-align: middle;
+      display: inline-block;
+      position: absolute;
+      top: 50%;
+      -ms-transform: translateY(-50%);
+      transform: translateY(-50%);
+      width: 85%;
+
+    }
+
+    /* Sliders */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 30px;
+      height: 17px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      -webkit-transition: .4s;
+      transition: .4s;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 13px;
+      width: 13px;
+      left: 2px;
+      bottom: 2px;
+      background-color: white;
+      -webkit-transition: .4s;
+      transition: .4s;
+    }
+
+    input:checked+.slider {
+      background-color: #2196F3;
+    }
+
+    input:focus+.slider {
+      box-shadow: 0 0 1px #2196F3;
+    }
+
+    input:checked+.slider:before {
+      -webkit-transform: translateX(13px);
+      -ms-transform: translateX(13px);
+      transform: translateX(13px);
+    }
+
+    /* Rounded sliders */
+    .slider.round {
+      border-radius: 17px;
+    }
+
+    .slider.round:before {
+      border-radius: 50%;
+    }
+
+    .switches {
+      margin-top: 10px;
+      margin-left: 20px;
+    }
+
+    .switchtext{
+      display: inline-block;
+      margin-top: 5px;
+      margin-bottom: 5px;
+    }
+  </style>
+  <script src="https://miro.com/app/static/sdk.1.1.js"></script>
+</head>
+
+<body>
+  <div class="scrollable-container">
+    <div class="scrollable-content">
+      <div class="switches">
+        <label class="switch">
+          <input type="checkbox" onclick="changeCircleSuggestionVisibility()">
+          <span class="slider round"></span>
+        </label>
+        <p class="switchtext">Hide Circle Suggestions</p>
+        <br>
+        <label class="switch">
+          <input type="checkbox" onclick="changeLineSuggestionVisibility()">
+          <span class="slider round"></span>
+        </label>
+        <p class="switchtext">Hide Line Suggestions</p>
+      </div>
+      <ul class='list' id="list">
+      </ul>
+    </div>
+  </div>
+  <script src="{{url_for('static', filename='sidebar.js')}}"></script>
+</body>
+
+</html>

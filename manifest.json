@@ -1,0 +1,17 @@
+{
+    "name": "Reimagining Search",
+    "description": "Combining note-taking in Miro with Query Suggestions",
+    "version": "0.1",
+    "manifest_version": 3,
+    "background": {
+        "service_worker": "/background.js"
+    },
+    "permissions": [
+        "activeTab",
+        "tabs",
+        "webNavigation",
+        "identity",
+        "webRequest",
+        "storage"
+    ]
+}
