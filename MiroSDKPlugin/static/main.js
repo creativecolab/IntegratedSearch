@@ -27,25 +27,6 @@ function addWidgets(widgets) {
 }
 
 
-/**
- * Add Line widget to board taking in two widgets as parameters
- */
-function addLine(prevLine) {
-    miro.board.widgets.create({
-        type: 'LINE',
-        startWidgetId: prevLine.startWidgetId,
-        endWidgetId: prevLine.endWidgetI,
-        style: {
-            lineColor: '#000000',
-            lineEndStyle: miro.enums.lineArrowheadStyle.NONE,
-            lineStartStyle: miro.enums.lineArrowheadStyle.NONE,
-            lineStyle: miro.enums.lineStyle.NORMAL,
-            lineThickness: 1,
-            lineType: miro.enums.lineType.ARROW,
-        }
-    })
-}
-
 function showCoordinates(event) {
     miro.showNotification(JSON.stringify(event.data))
 }
@@ -62,8 +43,8 @@ function showMetadataType(event) {
     }
 }
 
-function createSuggestionLine(startWidgetID, endWidgetID) {
-    miro.board.widgets.create({
+async function createSuggestionLine(startWidgetID, endWidgetID, text) {
+    let line = await miro.board.widgets.create({
         type: 'LINE',
         startWidgetId: startWidgetID,
         endWidgetId: endWidgetID,
@@ -72,11 +53,9 @@ function createSuggestionLine(startWidgetID, endWidgetID) {
         },
         metadata: {
             [client_id]: {
-                type: 'LineSuggestion',
-                text: 'test text',
-                url: '',
-                parentId: '',
-                childId: ''
+                type: 'Line',
+                text: text,
+                url: '' 
             }
         },
         clientVisible: true,
@@ -85,38 +64,69 @@ function createSuggestionLine(startWidgetID, endWidgetID) {
             lineEndStyle: miro.enums.lineArrowheadStyle.NONE,
             lineStartStyle: miro.enums.lineArrowheadStyle.NONE,
             lineStyle: miro.enums.lineStyle.DASHED,
-            lineThickness: 1,
-            lineType: miro.enums.lineType.ARROW,
+            lineThickness: 3,
+            lineType: 0,
         }
     })
+    var circleCoord = getLineMidpoint(line[0])
+    createSuggestionCircle(text, circleCoord.x, circleCoord.y, line[0].id, 'line')
 }
 
-function createSuggestionCircle(text, parentID) {
-    miro.board.widgets.create({
-        type: 'SHAPE',
-        x: 0,
-        y: 0,
-        capabilities: {
-            editable: false
-        },
-        metadata: {
-            [client_id]: {
-                type: 'DotSuggestion',
-                text: text,
-                url: '',
-                childId: ''
+function createSuggestionCircle(text, x, y, parentID, type) {
+    if (type=='line'){
+        miro.board.widgets.create({
+            type: 'SHAPE',
+            x: x,
+            y: y,
+            capabilities: {
+                editable: false
+            },
+            metadata: {
+                [client_id]: {
+                    type: 'LineSuggestion',
+                    text: text,
+                    url: '',
+                    parentId: parentID
+                }
+            },
+            clientVisible: true,
+            width: 50,
+            height: 50,
+            style: {
+                backgroundColor: '#000000',
+                borderOpacity: 0,
+                fontSize: 20,
+                shapeType: miro.enums.shapeType.CIRCLE,
             }
-        },
-        clientVisible: true,
-        width: 50,
-        height: 50,
-        style: {
-            backgroundColor: '#000000',
-            borderOpacity: 0,
-            fontSize: 20,
-            shapeType: miro.enums.shapeType.CIRCLE,
-        }
-    })
+        })
+    } else {
+        miro.board.widgets.create({
+            type: 'SHAPE',
+            x: x,
+            y: y,
+            capabilities: {
+                editable: false
+            },
+            metadata: {
+                [client_id]: {
+                    type: 'NoteSuggestion',
+                    text: text,
+                    url: '',
+                    parentId: parentID
+                }
+            },
+            clientVisible: true,
+            width: 50,
+            height: 50,
+            style: {
+                backgroundColor: '#000000',
+                borderOpacity: 0,
+                fontSize: 20,
+                shapeType: miro.enums.shapeType.CIRCLE,
+            }
+        })
+    }
+    
 }
 
 function createUrlFromText(text) {
@@ -129,7 +139,7 @@ function createUrlFromText(text) {
     return url
 }
 
-async function createPopupSearchWindow(suggestionType, x, y, text, parentID) {
+async function createPopupSearchWindow(x, y, text, parentID) {
     let url = createUrlFromText(text)
     await miro.board.widgets.create({
         type: 'SHAPE',
@@ -155,9 +165,9 @@ async function createPopupSearchWindow(suggestionType, x, y, text, parentID) {
             shapeType: miro.enums.shapeType.ROUNDER,
         }
     })
-    if (suggestionType == 'Line') {
-        await createAcceptButton(x + 100, y + 60, parentID)
-    }
+    // if (suggestionType == 'Line') {
+    //     await createAcceptButton(x + 100, y + 60, parentID)
+    // }
     await createRejectButton(x + 130, y + 60, parentID)
 }
 
@@ -217,6 +227,13 @@ async function createRejectButton(x, y, parentId) {
     })
 }
 
+function getLineMidpoint(line) {
+    return {
+        x: (line.startPosition.x + line.endPosition.x) / 2,
+        y: (line.startPosition.y + line.endPosition.y) / 2
+    }
+}
+
 async function selectionClicked(event) {
     let widgets = await miro.board.selection.get()
     if (widgets.length == 1) {
@@ -225,30 +242,44 @@ async function selectionClicked(event) {
         try {
             type = eventMetadata[0]['metadata'][client_id]['type']
         } catch (error) {
+            createSuggestionCircle("test text",widgets[0].bounds.right, widgets[0].bounds.top, widgets[0].id )
             removePopups()
             return;
         }
+        let x = widgets[0].x
+        let y = widgets[0].y
         switch (type) {
-            case 'DotSuggestion':
-                let x = widgets[0].x
-                let y = widgets[0].y
-                removePopups()
-                createPopupSearchWindow('Dot', x + 170, y - 95, widgets[0].metadata[client_id].text, widgets[0].id)
-                break;
             case 'LineSuggestion':
-                let startWidget = await miro.board.widgets.get({ id: widgets[0].startWidgetId })
-                let endWidget = await miro.board.widgets.get({ id: widgets[0].endWidgetId })
+                let lineId=widgets[0].metadata[client_id].parentId
                 removePopups()
-                createPopupSearchWindow('Line',
-                    (startWidget[0].x + endWidget[0].x) / 2,
-                    (startWidget[0].y + endWidget[0].y) / 2,
-                    widgets[0].metadata[client_id].text,
-                    widgets[0].id);
+                createPopupSearchWindow(x + 170, y - 95, widgets[0].metadata[client_id].text, [widgets[0].id, lineId])
                 break;
-            case 'Accept':
-                await acceptLineSuggestion(widgets[0].metadata[client_id].parentId)
-                await removePopups()
+            case 'NoteSuggestion':
+                removePopups()
+                createPopupSearchWindow(x + 170, y - 95, widgets[0].metadata[client_id].text, widgets[0].id)
                 break;
+            case 'Line':
+                let dotSuggestion = await miro.board.widgets.get({
+                    metadata:{
+                        [client_id]:{
+                            type: 'LineSuggestion',
+                            text: widgets[0].metadata[client_id].text,
+                            url: widgets[0].metadata[client_id].url,
+                            parentId: widgets[0].id
+                        }
+                    }
+                })
+                removePopups()
+                createPopupSearchWindow(
+                    dotSuggestion[0].x+170,
+                    dotSuggestion[0].y-95,
+                    dotSuggestion[0].metadata[client_id].text,
+                    [dotSuggestion[0].id, widgets[0].id]);
+                break;
+            // case 'Accept':
+            //     await acceptLineSuggestion(widgets[0].metadata[client_id].parentId)
+            //     await removePopups()
+            //     break;
             case 'Reject':
                 await miro.board.widgets.deleteById(widgets[0].metadata[client_id].parentId)
                 await removePopups()
@@ -281,8 +312,9 @@ function onLoad(event) {
 async function removePopups() {
     let selectedWidgets = await miro.board.widgets.get()
     let widgets = selectedWidgets.filter((widget) => Object.keys(widget.metadata).length !== 0)
-    widgets = widgets.filter((widget) => (widget.metadata[client_id].type !== 'DotSuggestion')
-        && (widget.metadata[client_id].type !== 'LineSuggestion'))
+    widgets = widgets.filter((widget) => (widget.metadata[client_id].type == 'Popup')
+        || (widget.metadata[client_id].type == 'Accept')
+        || (widget.metadata[client_id].type == 'Reject'))
     await miro.board.widgets.deleteById(widgets)
 }
 
@@ -308,8 +340,18 @@ async function acceptLineSuggestion(widgetId) {
     await miro.board.widgets.deleteById(widgetId)
 }
 
+async function widgetMoved(event){
+    await removePopups()
+    let widgetIds=event.data.map(widget => widget.id)
+    let widgets=await miro.board.widgets.get()
+    widgets=widgets.filter(widget=> Object.keys(widget.metadata).length !== 0)
+    widgets=widgets.filter(widget=> widgetIds.includes(widget.metadata[client_id].parentId))
+    await miro.board.widgets.deleteById(widgets.map(widget=> widget.id))
+}
+
 miro.onReady(async () => {
     miro.addListener(miro.enums.event.SELECTION_UPDATED, selectionClicked)
+    miro.addListener(miro.enums.event.WIDGETS_TRANSFORMATION_UPDATED, widgetMoved)
     await removePopups()
     miro.initialize({
         extensionPoints: {
@@ -318,7 +360,7 @@ miro.onReady(async () => {
                 toolbarSvgIcon: icon,
                 librarySvgIcon: icon,
                 onClick: async () => {
-                    miro.board.ui.openLibrary('toolbar.html', {title: 'Suggestion Library'})
+                    miro.board.ui.openLibrary('toolbar.html', { title: 'Suggestion Library' })
                 }
             },
             bottomBar: {
@@ -328,10 +370,13 @@ miro.onReady(async () => {
                     let selectedWidgets = await miro.board.widgets.get()
                     let widgets = selectedWidgets.filter((widget) => (Object.keys(widget.metadata).length == 0)
                         && widget.type == 'SHAPE')
-                    createSuggestionLine(widgets[0].id, widgets[1].id)
+                    //makePOSTRequest(selectedWidgets)
 
                     let text = 'COVID 19 and its severe environmental impacts on wildlife and oil'
-                    createSuggestionCircle(text)
+
+                    createSuggestionLine(widgets[0].id, widgets[1].id, text)
+                    //addClusterTitle(text)
+                    
                     openSidebar()
                     // let widgets = await miro.board.widgets.get()
                     // let line = widgets.filter((widget) => widget.type == 'LINE')

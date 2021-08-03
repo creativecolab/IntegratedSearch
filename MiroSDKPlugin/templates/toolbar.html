@@ -1,65 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <title>Drag and drop</title>
-    <style>
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-        padding: 0;
-      }
 
-      #container {
-        height: 100%;
-        overflow-y: auto;
-        overflow-x: hidden;
-        display: flex;
-        flex-wrap: wrap;
-        flex-direction: row;
-        align-items: center;
-        padding-top: 32px;
-        box-sizing: border-box;
-      }
+<head>
+  <title>Drag and drop</title>
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
 
-      .row {
-        display: flex;
-        flex-direction: row;
-        padding-left: 32px;
-        margin-bottom: 32px;
-      }
+    .scrollable-container {
+      height: 100%;
+      overflow-y: auto;
+    }
 
-      .draggable-item {
-        margin-left: 32px;
-        margin-bottom: 32px;
-        width: 112px;
-        height: 112px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        color: #fff;
-        font-size: 18px;
-        font-family: sans-serif;
-      }
+    .scrollable-content {
+      height: auto;
+    }
 
-      .draggable-item.red {
-        background-color: #f24726;
-      }
+    .btn{
+      display:block;
+      margin:auto;
+    }
+    
+    .btnLbl{
+      margin: auto;
+      text-align: center;
+    }
 
-      .draggable-item.green {
-        background-color: #0ca788;
-      }
+    .btnDiv{
+      display: block;
+      margin-left: 10px;
+      margin-top: 10px;
+      border:1px solid black;
+      white-space: nowrap;
+      width: 50%;
+    }
 
-      .image-box img {
-        max-width: 112px;
-        max-height: 112px;
-        cursor: pointer;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="container"></div>
-    <script src="https://miro.com/app/static/sdk.1.1.js"></script>
-    <script src="{{url_for('static', filename='toolbar.js')}}"></script>
-  </body>
+    #titleImage {
+      background-color: yellow
+    }
+
+    .warning {
+      font-size: 10px;
+      font-style: italic;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="scrollable-container">
+    <div class="scrollable-content">
+      <div class='btnDiv' onclick='addClusterGroup()'>
+        <input type='image' src='/static/clusterGroup.png' height="100px" width="100px" class='btn'>
+        <p class='btnLbl'>Add grouping</p>
+      </div>
+      <div class='btnDiv' onclick='addClusterTitle()' >
+        <input type='image' src='/static/clusterTitleIcon.png' height="100px" width="100px" class='btn' id='titleImage'>
+        <p class='btnLbl'>Add grouping title</p>
+      </div>
+      <div class='btnDiv' onclick='connectionLineBtnClicked()'>
+        <input type='image' src='/static/dashed-line.png' height="100px" width="100px"  class='btn'>
+        <p class='btnLbl'>Add connection line</p>
+        <p class='warning'>Select 2 items first.<br>(Select multiple items using the ctrl button)</p>
+      </div>
+    </div>
+  </div>
+  <script src="https://miro.com/app/static/sdk.1.1.js"></script>
+  <script src="{{url_for('static', filename='toolbar.js')}}"></script>
+</body>
+
 </html>

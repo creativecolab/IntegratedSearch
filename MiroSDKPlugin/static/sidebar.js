@@ -6,13 +6,19 @@ miro.onReady(async () => {
     let widgets = await miro.board.widgets.get()
     let metadataWidgets = widgets.filter((widget) => Object.keys(widget.metadata).length !== 0)
     let dotWidgets = metadataWidgets.filter((widget) =>
-        widget.metadata[client_id].type === 'DotSuggestion'
+        widget.metadata[client_id].type === 'NoteSuggestion'
     )
     createList(dotWidgets.sort(compare))
     let lineWidgets = metadataWidgets.filter((widget) =>
         widget.metadata[client_id].type === 'LineSuggestion'
     )
     createList(lineWidgets.sort(compare))
+    if (lineWidgets.length+dotWidgets.length==0){
+        let p=document.createElement('p')
+        let text=document.createTextNode('No suggestions yet!')
+        var list = document.getElementById('list');
+        list.appendChild(p)
+    }
     //miro.addListener(miro.enums.event.SELECTION_UPDATED, addToList)
 })
 
@@ -94,7 +100,7 @@ function addToList(widget) {
 
 function createlistItemElement(widget) {
     let listItem = document.createElement('li');
-    if(widget.metadata[client_id].type==='DotSuggestion'){
+    if(widget.metadata[client_id].type==='NoteSuggestion'){
         listItem.setAttribute('class', 'circleItem')
         listItem.setAttribute('display', 'block')
     }else if (widget.metadata[client_id].type==='LineSuggestion'){
@@ -107,7 +113,7 @@ function createIconElement(widgetType) {
     let icon = document.createElement('div')
 
     icon.setAttribute('class', 'iconDiv')
-    if (widgetType === 'DotSuggestion') {
+    if (widgetType === 'NoteSuggestion') {
         let text = document.createElement('p')
         text.setAttribute('class', 'iconDot')
         text.innerHTML = '&#x2022'
@@ -138,10 +144,10 @@ function createButtonDiv(widgetType) {
     let div = document.createElement('div')
     div.setAttribute('class', 'buttons')
     div.appendChild(search)
-    if (widgetType === 'LineSuggestion') {
-        let accept = createAcceptElement()
-        div.appendChild(accept)
-    }
+    // if (widgetType === 'LineSuggestion') {
+    //     let accept = createAcceptElement()
+    //     div.appendChild(accept)
+    // }
     div.appendChild(reject)
     return div
 }
@@ -200,6 +206,10 @@ function createRejectElement() {
     reject.innerHTML = '&#10007'
     reject.addEventListener('click', async function (e) {
         let widgetid = this.parentNode.parentNode.parentNode.getAttribute('id')
+        let widget = await miro.board.widgets.get({id: widgetid})
+        if(widget[0].metadata[client_id].type=='LineSuggestion'){
+            await miro.board.widgets.deleteById(widget[0].metadata[client_id].parentId)
+        }
         await miro.board.widgets.deleteById(widgetid)
         document.getElementById(widgetid).remove()
     })
@@ -213,7 +223,8 @@ function createTextElement(widgetText) {
     text.innerHTML = widgetText;
     text.addEventListener('click', async function (e) {
         let widgetid = this.parentNode.parentNode.getAttribute('id')
-        miro.board.viewport.zoomToObject(widgetid)
+        let widget=await miro.board.widgets.get({id: widgetid})
+        miro.board.viewport.zoomToObject(widget[0].metadata[client_id].parentId)
     })
     return text
 }
@@ -226,25 +237,3 @@ function rejectSuggestion(test) {
     miro.showNotification('reject button clicked!')
 }
 
-// Get HTML elements for tip and text container
-const tipElement = document.getElementById('tip')
-const widgetTextElement = document.getElementById('widget-text')
-
-async function getWidget() {
-    // Get selected widgets
-    let widgets = await miro.board.selection.get()
-
-    // Get first widget from selected widgets
-    let text = widgets[0].text
-
-    // Check that the widget has text field
-    if (typeof text === 'string') {
-        // Hide tip and show text in sidebar
-        tipElement.style.opacity = '0'
-        widgetTextElement.value = text
-    } else {
-        // Show tip and clear text in sidebar
-        tipElement.style.opacity = '1'
-        widgetTextElement.value = ''
-    }
-}
