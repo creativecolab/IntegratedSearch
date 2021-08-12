@@ -1,8 +1,26 @@
 var widgets = []
 var client_id = "3074457360917723621"
+var circleCardVisible=true
+var lineCardVisible=true
+cardType=['NoteSuggestion','LineSuggestion']
+var socket = io();
+
+const wizardIds = ['3074457360917294320', '3074457360807760467']
+
+var USER_IS_WIZARD;
 
 miro.onReady(async () => {
-
+    userId = await miro.currentUser.getId()
+    USER_IS_WIZARD=wizardIds.includes(userId)
+    var list = document.getElementById('list');
+    if(USER_IS_WIZARD){
+        let navigateToWizardPage=document.createElement('a')
+        navigateToWizardPage.href='/wizardSidebar.html'
+        navigateToWizardPage.innerHTML='Navigate to wizarding interface.'
+        list.appendChild(navigateToWizardPage)
+    }
+    miro.addListener(miro.enums.event.WIDGETS_CREATED, addToSidebar)
+    miro.addListener(miro.enums.event.WIDGETS_DELETED, removeFromSidebar)
     let widgets = await miro.board.widgets.get()
     let metadataWidgets = widgets.filter((widget) => Object.keys(widget.metadata).length !== 0)
     let dotWidgets = metadataWidgets.filter((widget) =>
@@ -13,14 +31,33 @@ miro.onReady(async () => {
         widget.metadata[client_id].type === 'LineSuggestion'
     )
     createList(lineWidgets.sort(compare))
+    let p=document.createElement('p')
     if (lineWidgets.length+dotWidgets.length==0){
-        let p=document.createElement('p')
-        let text=document.createTextNode('No suggestions yet!')
-        var list = document.getElementById('list');
-        list.appendChild(p)
+        p.innerHTML='No search suggestions yet!'
+    }else{
+        p.innerHTML='Click the text in a card to navigate to its corresponding note.'
+        p.style.fontStyle='italic'
     }
-    //miro.addListener(miro.enums.event.SELECTION_UPDATED, addToList)
+    p.setAttribute('class','textDesc')
+    list.appendChild(p)
 })
+
+async function addToSidebar(event){
+    if(Object.keys(event.data[0])==0){
+        return
+    }else if (cardType.includes(event.data[0].metadata[client_id].type)) {
+        let widget=await miro.board.widgets.get({id: event.data[0].id})
+        addToList(widget[0])
+    }
+}
+
+async function removeFromSidebar(event){
+    if(Object.keys(event.data[0])==0){
+        return
+    }else {
+        removeFromList(event.data[0].id)
+    }
+}
 
 function compare( a, b ) {
     if ( a.id < b.id ){
@@ -40,9 +77,11 @@ function changeCircleSuggestionVisibility(){
         //miro.showNotification(circleItems[0].getAttribute('display').toString());
         //circleItems[0].style.display = 'block';
         [...circleItems].forEach((item)=> item.style.display = 'block')
+        circleCardVisible=true
     }else{
         //circleItems[0].style.display = 'none'
         [...circleItems].forEach((item)=> item.style.display = 'none')
+        circleCardVisible=false
     }
 }
 
@@ -54,9 +93,11 @@ function changeLineSuggestionVisibility(){
         //miro.showNotification(circleItems[0].getAttribute('display').toString());
         //circleItems[0].style.display = 'block';
         [...lineItems].forEach((item)=> item.style.display = 'block')
+        lineCardVisible=true
     }else{
         //circleItems[0].style.display = 'none'
         [...lineItems].forEach((item)=> item.style.display = 'none')
+        lineCardVisible=false
     }
 }
 
@@ -94,17 +135,31 @@ function addToList(widget) {
     list.appendChild(listItem);
     listItem.appendChild(icon)
     listItem.appendChild(card)
-
 }
 
+function removeFromList(widgetId){
+    let card=document.getElementById(widgetId)
+    if(card===null){return}
+    card.remove()
+}
 
 function createlistItemElement(widget) {
     let listItem = document.createElement('li');
+   
     if(widget.metadata[client_id].type==='NoteSuggestion'){
         listItem.setAttribute('class', 'circleItem')
-        listItem.setAttribute('display', 'block')
+        if(circleCardVisible){
+            listItem.style.display='block'
+        }else{
+            listItem.style.display='none'
+        }
     }else if (widget.metadata[client_id].type==='LineSuggestion'){
         listItem.setAttribute('class', 'lineItem')
+        if(lineCardVisible){
+            listItem.style.display='block'
+        }else{
+            listItem.style.display='none'
+        }
     }
     return listItem
 }
@@ -130,11 +185,23 @@ function createIconElement(widgetType) {
 function createCardElement(widgetText, widgetType) {
     let card = document.createElement('div')
     card.setAttribute('class', 'card')
-
-    let text = createTextElement(widgetText)
-    let buttons = createButtonDiv(widgetType)
-    card.appendChild(text)
-    card.appendChild(buttons)
+    let textDiv = document.createElement('div')
+    textDiv.setAttribute('class','textDiv')
+    widgetText.forEach((widget)=>{
+        let query = document.createElement('div')
+        query.setAttribute('class', 'queryRow')
+        let queryBtn = createSearchElement()
+        let text = createTextElement(widget)
+        query.appendChild(queryBtn)
+        query.appendChild(text)
+        textDiv.appendChild(query)
+    })
+    cardRect=card.getBoundingClientRect()
+    let reject = createRejectElement()
+    reject.style.right=(cardRect.right)+'px';
+    reject.style.top=(cardRect.top)+'px';
+    card.appendChild(reject)
+    card.appendChild(textDiv)
     return card
 }
 
@@ -186,9 +253,10 @@ function createAcceptElement() {
 function createSearchElement() {
     let search = document.createElement('button')
     search.setAttribute('class', 'search')
-    search.innerHTML = '&#128269'
+    search.innerHTML = '🔎︎'
     search.addEventListener('click', async function (e) {
-        let cardText = this.parentNode.parentNode.firstChild.innerHTML
+        let cardText = this.parentNode.childNodes[1].innerHTML
+        console.log(this.parentNode.childNodes)
         let wordsQuery = cardText.split(' ')
         let url = 'https://www.google.com/search?q=' + wordsQuery[0]
         wordsQuery = wordsQuery.map(x => '+' + x)
@@ -203,9 +271,15 @@ function createSearchElement() {
 function createRejectElement() {
     let reject = document.createElement('button')
     reject.setAttribute('class', 'reject')
-    reject.innerHTML = '&#10007'
+    reject.innerHTML = '✖'
+    reject.addEventListener('mouseover', function(e){
+        this.style.backgroundColor='#D3D3D3'
+    })
+    reject.addEventListener('mouseout', function(e){
+        this.style.backgroundColor='#FFFFFF'
+    })
     reject.addEventListener('click', async function (e) {
-        let widgetid = this.parentNode.parentNode.parentNode.getAttribute('id')
+        let widgetid = this.parentNode.parentNode.getAttribute('id')
         let widget = await miro.board.widgets.get({id: widgetid})
         if(widget[0].metadata[client_id].type=='LineSuggestion'){
             await miro.board.widgets.deleteById(widget[0].metadata[client_id].parentId)
@@ -221,8 +295,14 @@ function createTextElement(widgetText) {
     let text = document.createElement('p')
     text.setAttribute('class', 'text')
     text.innerHTML = widgetText;
+    text.addEventListener('mouseover', function(e){
+        this.style.backgroundColor='#D3D3D3'
+    })
+    text.addEventListener('mouseout', function(e){
+        this.style.backgroundColor='#FFFFFF'
+    })
     text.addEventListener('click', async function (e) {
-        let widgetid = this.parentNode.parentNode.getAttribute('id')
+        let widgetid = this.parentNode.parentNode.parentNode.parentNode.getAttribute('id')
         let widget=await miro.board.widgets.get({id: widgetid})
         miro.board.viewport.zoomToObject(widget[0].metadata[client_id].parentId)
     })

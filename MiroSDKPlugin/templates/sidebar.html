@@ -3,6 +3,9 @@
 
 <head>
   <meta charset="UTF-8" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
+    integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
+    crossorigin="anonymous"></script>
   <style>
     html,
     body {
@@ -23,15 +26,16 @@
     #list {
       background-color: white;
       list-style-type: none;
-      padding-left: 20px;
+      padding-left: 5px;
       margin-top: 8px;
     }
 
-    .lineItem, .circleItem {
+    .lineItem,
+    .circleItem {
       white-space: normal;
       position: relative;
       /* vertical-align: middle; */
-      display:block;
+      display: block;
     }
 
     .card {
@@ -42,12 +46,27 @@
       padding-right: 8px;
       border: 1px solid grey;
       width: 85%;
+      height: 3.5em;
+      font-size: 16px;
       display: inline-block;
       position: absolute;
       top: 50%;
       -ms-transform: translateY(-50%);
       transform: translateY(-50%);
       word-wrap: break-word;
+    }
+
+    .textDiv {
+      margin: 0;
+      position: absolute;
+      top: 50%;
+      -ms-transform: translateY(-50%);
+      transform: translateY(-50%);
+    }
+
+    .queryRow {
+      display: block;
+      margin-bottom: 3px;
     }
 
     .buttons {
@@ -57,14 +76,18 @@
 
     .search {
       color: black;
-      display: block;
-      padding: 0;
+      padding-right: 3px;
+      padding-left: 3px;
+      display: inline-block;
     }
 
     .reject {
       display: block;
-      padding-right: 4px;
-      padding-left: 4px;
+      border: none;
+      padding: 0px;
+      position: absolute;
+      background-color: white;
+      border-radius: 50%;
     }
 
     .accept {
@@ -76,16 +99,16 @@
       font-size: 60px;
       color: black;
       vertical-align: middle;
-      margin-top: 10px;
-      margin-bottom: 10px;
+      margin-top: 15px;
+      margin-bottom: 15px;
     }
 
     .iconLine {
       font-size: 40px;
       color: black;
       vertical-align: middle;
-      margin-top: 20px;
-      margin-bottom: 20px;
+      margin-top: 25px;
+      margin-bottom: 25px;
     }
 
     .iconDiv {
@@ -95,15 +118,10 @@
 
     .text {
       margin: 0;
-      vertical-align: middle;
       display: inline-block;
-      position: absolute;
-      top: 50%;
-      -ms-transform: translateY(-50%);
-      transform: translateY(-50%);
-      width: 85%;
-
+      margin-left: 5px;
     }
+
 
     /* Sliders */
     .switch {
@@ -171,11 +189,16 @@
       margin-left: 20px;
     }
 
-    .switchtext{
+    .switchtext {
       display: inline-block;
       margin-top: 5px;
       margin-bottom: 5px;
     }
+
+    .textDesc{
+      margin-left:10px;
+    }
+
   </style>
   <script src="https://miro.com/app/static/sdk.1.1.js"></script>
 </head>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
+        integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
+        crossorigin="anonymous"></script>
+    <style>
+        .btnLbl {
+            margin: auto;
+            text-align: left;
+        }
+    </style>
+    <script src="https://miro.com/app/static/sdk.1.1.js"></script>
+</head>
+
+<body>
+    <div class="scrollable-container">
+        <div class="scrollable-content">
+            <div>
+                <a href="/sidebar.html">Navigate to current list of suggestions.</a>
+                <br>
+
+                <h4>Add suggestion for note</h4>
+                <div class='queryTexts'>
+                    <div class='textInput'>
+                        <label for="noteSuggestionText">Query Text:</label>
+                        <input type="text" id="noteSuggestionText1" name="noteSuggestionText" list="noteSuggestionChoices"><br><br>
+                    </div>
+                    <div class='textInput'>
+                        <label for="noteSuggestionText">Query Text:</label>
+                        <input type="text" id="noteSuggestionText2" name="noteSuggestionText" list="noteSuggestionChoices"><br><br>
+                    </div>
+                    <div class='textInput'>
+                        <label for="noteSuggestionText">Query Text:</label>
+                        <input type="text" id="noteSuggestionText3" name="noteSuggestionText" list="noteSuggestionChoices"><br><br>
+                    </div>
+                    <datalist id="noteSuggestionChoices">
+                        <option></option>
+                    </datalist>
+                </div>
+                
+                <p class='btnLbl'>Highlight a text box/sticky note/shape<br> to add query suggestion to, then click
+                    submit below.</p>
+                <input type="submit" value="Submit" onclick='addSuggestionCircle()'>
+            </div>
+            <br>
+            <br>
+            <div>
+                <h4>Add suggestion between two lines</h4>
+                <div class='queryTexts'>
+                    <div class='textInput'>
+                        <label for="lineSuggestionText">Query Text:</label>
+                        <input type="text" id="lineSuggestionText1" name="lineSuggestionText" list="lineSuggestionChoices"><br><br>
+                    </div>
+                    <div class='textInput'>
+                        <label for="lineSuggestionText">Query Text:</label>
+                        <input type="text" id="lineSuggestionText2" name="lineSuggestionText" list="lineSuggestionChoices"><br><br>
+                    </div>
+                    <div class='textInput'>
+                        <label for="lineSuggestionText">Query Text:</label>
+                        <input type="text" id="lineSuggestionText3" name="lineSuggestionText" list="lineSuggestionChoices"><br><br>
+                    </div>
+                    <datalist id="lineSuggestionChoices">
+                        <option></option>
+                    </datalist>
+                </div>
+                <p class='btnLbl'>Highlight 2 text boxes/sticky notes/shapes<br> to add line to a, then click submit
+                    below.</p>
+                <input type="submit" value="Submit" onclick='addSuggestionLine()'>
+            </div>
+        </div>
+    </div>
+    <script src="{{url_for('static', filename='wizardSidebar.js')}}"></script>
+</body>
+
+</html>

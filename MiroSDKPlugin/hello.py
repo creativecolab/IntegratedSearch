@@ -1,9 +1,17 @@
 from flask import Flask, render_template, jsonify, request, send_file
+from flask_cors import CORS, cross_origin
+from flask_socketio import SocketIO, send, emit
+
+import eventlet
+
 app = Flask(__name__)
+cors = CORS(app)
+socketio = SocketIO(app)
 
-app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
-
-data = 2
+@socketio.on('test')
+def handle_my_custom_event(json):
+    print(json)
+    send(json, json=True, broadcast=True)
 
 @app.route('/')
 def index():
@@ -17,22 +25,15 @@ def sidebar():
 def toolbar():
     return render_template('toolbar.html')
 
-def createLine(widgets):
-    if len(widgets['widgets'])>=2:
-        line={
-            'type': "line",
-            'startWidgetID': widgets['widgets'][0]['id'],
-            'endWidgetID': widgets['widgets'][1]['id']
-        }
-        return jsonify(line)
-    else:
-        return 'OK'
+@app.route('/wizardSidebar.html')
+def wizard_sidebar():
+    return render_template('wizardSidebar.html')
+
 
 @app.route('/test1', methods=['GET','POST'])
 def test1():
     # POST request
     if request.method == 'POST':
-        print(request.get_json())
         return '', 200
 
     # GET request
@@ -40,10 +41,5 @@ def test1():
         message = {'greeting':'Hello from Flask!'}
         return jsonify(message)  # serialize and use JSON headers
 
-@app.route('/image')
-def get_image():
-    if request.args.get('type') == '1':
-       filename = 'ok.gif'
-    else:
-       filename = 'error.gif'
-    return send_file(filename, mimetype='image/gif')
+if __name__ == '__main__':
+    socketio.run(app)

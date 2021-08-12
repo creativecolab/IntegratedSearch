@@ -6,6 +6,7 @@ miro.onReady(async () => {
 
 async function connectionLineBtnClicked(){
     let widgets=await miro.board.selection.get()
+    widgets=widgets.filter(widget => Object.keys(widget.metadata[client_id]).length<=1)
     if(widgets.length!=2){
         miro.showNotification('Please select 2 text boxes/shapes/sticky notes to connect (You can select multiple items using the ctrl button).')
     }else{
@@ -67,6 +68,11 @@ async function addClusterTitle(){
         x: centeredX,
         y: centeredY,
         scale:4,
+        metadata: {
+            [client_id]:{
+                type: 'ClusterTitle'
+            }
+        },
         style: {
             backgroundColor: '#FFFF00',
             highlighting: 'yellow'
