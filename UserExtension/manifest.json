@@ -1,0 +1,27 @@
+{
+    "name": "Reimagining Search",
+    "description": "Combining note-taking in Miro with Query Suggestions",
+    "version": "0.1",
+    "manifest_version": 3,
+    "content_scripts": [ {
+        "matches": ["http://*/*", "https://*/*"],
+        "js": ["socket.io.min.js"]
+    }],
+    "background": {
+        "service_worker": "/background.js"
+    },
+    "host_permissions": ["*://*/*"],
+    "permissions": [
+        "activeTab",
+        "tabs",
+        "webNavigation",
+        "identity",
+        "webRequest",
+        "storage",
+        "debugger",
+        "scripting"
+    ],
+    "sandbox": {
+        "pages": ["sandbox.html"]
+     }
+}
