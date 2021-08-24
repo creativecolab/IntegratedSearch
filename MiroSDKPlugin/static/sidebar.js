@@ -2,22 +2,39 @@ var widgets = []
 var client_id = "3074457360917723621"
 var circleCardVisible=true
 var lineCardVisible=true
-cardType=['NoteSuggestion','LineSuggestion']
+var cardType=['NoteSuggestion','LineSuggestion']
 var socket = io();
+var task_topic;
 
 const wizardIds = ['3074457360917294320', '3074457360807760467']
 
 var USER_IS_WIZARD;
 
 miro.onReady(async () => {
+    task_topic = await getTaskTopic()
     userId = await miro.currentUser.getId()
     USER_IS_WIZARD=wizardIds.includes(userId)
+    var bar = document.getElementById('sidebar');
     var list = document.getElementById('list');
     if(USER_IS_WIZARD){
         let navigateToWizardPage=document.createElement('a')
         navigateToWizardPage.href='/wizardSidebar.html'
         navigateToWizardPage.innerHTML='Navigate to wizarding interface.'
         list.appendChild(navigateToWizardPage)
+
+        let switches=document.getElementById('switchesDiv')
+        switches.appendChild(createNoteSwitch())
+        let noteSwitchText = document.createElement('p')
+        noteSwitchText.setAttribute('class', 'switchtext')
+        noteSwitchText.innerHTML='Hide Note Suggestions'
+        switches.appendChild(noteSwitchText)
+        switches.appendChild(document.createElement('br'))
+        switches.appendChild(createLineSwitch())
+        let lineSwitchText = document.createElement('p')
+        lineSwitchText.setAttribute('class', 'switchtext')
+        lineSwitchText.innerHTML='Hide Line Suggestions'
+        switches.appendChild(lineSwitchText)
+
     }
     miro.addListener(miro.enums.event.WIDGETS_CREATED, addToSidebar)
     miro.addListener(miro.enums.event.WIDGETS_DELETED, removeFromSidebar)
@@ -35,14 +52,47 @@ miro.onReady(async () => {
     if (lineWidgets.length+dotWidgets.length==0){
         p.innerHTML='No search suggestions yet!'
     }else{
-        p.innerHTML='Click the text in a card to navigate to its corresponding note.'
-        p.style.fontStyle='italic'
+        // p.innerHTML='Click the text in a card to navigate to its corresponding note.'
+        // p.style.fontStyle='italic'
     }
     p.setAttribute('class','textDesc')
-    list.appendChild(p)
+    bar.appendChild(p)
 })
 
+async function getTaskTopic(){
+    let taskWidget = await miro.board.widgets.get({metadata: {[client_id]: {type: 'Topic'}}})
+    console.log(taskWidget[0].plainText.substring(12))
+    return taskWidget[0].plainText.substring(12)
+}
+
+function createNoteSwitch(){
+    let noteSwitch = document.createElement('label')
+    noteSwitch.setAttribute('class', 'switch')
+    let checkLabel = document.createElement('input')
+    checkLabel.setAttribute('type', 'checkbox')
+    checkLabel.addEventListener('click', changeCircleSuggestionVisibility)
+    let span = document.createElement('span')
+    span.setAttribute('class', 'slider round')
+    noteSwitch.appendChild(checkLabel)
+    noteSwitch.appendChild(span)
+    return noteSwitch
+}
+
+function createLineSwitch(){
+    let lineSwitch = document.createElement('label')
+    lineSwitch.setAttribute('class', 'switch')
+    let checkLabel = document.createElement('input')
+    checkLabel.setAttribute('type', 'checkbox')
+    checkLabel.addEventListener('click', changeLineSuggestionVisibility)
+    let span = document.createElement('span')
+    span.setAttribute('class', 'slider round')
+    lineSwitch.appendChild(checkLabel)
+    lineSwitch.appendChild(span)
+    return lineSwitch
+}
+
 async function addToSidebar(event){
+    console.log(event)
     if(Object.keys(event.data[0])==0){
         return
     }else if (cardType.includes(event.data[0].metadata[client_id].type)) {
@@ -52,6 +102,7 @@ async function addToSidebar(event){
 }
 
 async function removeFromSidebar(event){
+    console.log(event)
     if(Object.keys(event.data[0])==0){
         return
     }else {
@@ -256,8 +307,8 @@ function createSearchElement() {
     search.innerHTML = '🔎︎'
     search.addEventListener('click', async function (e) {
         let cardText = this.parentNode.childNodes[1].innerHTML
-        console.log(this.parentNode.childNodes)
-        let wordsQuery = cardText.split(' ')
+        let text = cardText + " " + task_topic
+        let wordsQuery = text.split(' ')
         let url = 'https://www.google.com/search?q=' + wordsQuery[0]
         wordsQuery = wordsQuery.map(x => '+' + x)
         for (let i = 1; i < wordsQuery.length; i++) {
@@ -295,19 +346,25 @@ function createTextElement(widgetText) {
     let text = document.createElement('p')
     text.setAttribute('class', 'text')
     text.innerHTML = widgetText;
-    text.addEventListener('mouseover', function(e){
-        this.style.backgroundColor='#D3D3D3'
-    })
-    text.addEventListener('mouseout', function(e){
-        this.style.backgroundColor='#FFFFFF'
-    })
-    text.addEventListener('click', async function (e) {
-        let widgetid = this.parentNode.parentNode.parentNode.parentNode.getAttribute('id')
-        let widget=await miro.board.widgets.get({id: widgetid})
-        miro.board.viewport.zoomToObject(widget[0].metadata[client_id].parentId)
-    })
+
+    if(USER_IS_WIZARD){
+        text.addEventListener('mouseover', function(e){
+            this.style.backgroundColor='#D3D3D3'
+        })
+        text.addEventListener('mouseout', function(e){
+            this.style.backgroundColor='#FFFFFF'
+        })
+        text.addEventListener('click', async function (e) {
+            let widgetid = this.parentNode.parentNode.parentNode.parentNode.getAttribute('id')
+            let widget=await miro.board.widgets.get({id: widgetid})
+            miro.board.viewport.zoomToObject(widget[0].metadata[client_id].parentId)
+        })
+    }
+
+
     return text
 }
+
 
 function searchSuggestion() {
     miro.showNotification('search button clicked!')

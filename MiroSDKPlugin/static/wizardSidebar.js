@@ -1,75 +1,453 @@
 var client_id = "3074457360917723621"
 const wizardIds = ['3074457360917294320', '3074457360807760467']
 var socket = io();
+var board_id;
+
+const noteSuggPreChoices_COVID19 = ['Organic and inorganic pollutants ',
+'Soap discharge',
+'Air pollution',
+'Air pollution CO2',
+'Air pollution NO2',
+'Air pollution ozone spikes',
+'Chlorofluorocarbons',
+'Noise pollution',
+'Soil pollution',
+'Plastic pollution',
+'Water pollution',
+'Road-killing',
+'Biodiversity',
+'Breeding success of birds',
+'Reduced fishing',
+'Reduced boat disturbance',
+'Wildlife conservation and management',
+'Invasive alien species',
+'Endangered species',
+'Illegal killing/poaching of wildlife',
+'Tourism',
+'Heritage conservation',
+'Indigenous people',
+'Power Industry',
+'Oil and gas',
+'Nuclear energy',
+'Manufacturing and food industry',
+'Packaging industry',
+'Food and dinning industry',
+'Steel industry',
+'Construction industry',
+'Agriculture industry',
+'Fishing industry',
+'Bike sales',
+'E-commerce',
+'Municipal solid waste',
+'Biomedical waste']
+
+const lineSuggPreChoices_COVID19 = [
+    'Ecotourism',
+'National Parks Service',
+'Road Traffic',
+'NO2 and biomass',
+'Deforestation',
+'Carbon emissions of the rich',
+'Environmental racism',
+'Carbon inequality',
+'Decreased transport',
+'Greenhouse gas levels',
+'Waste collection',
+'Recycling Programs',
+'Waste management policies',
+'Essential waste workers',
+'Cold chain',
+'Pharmeceutical transport',
+'Food transport',
+'Blockchain',
+'Post-covid Green Recovery',
+'Ecological restoration',
+'Sustainable development goals',
+'CFC-free coldchain equipment',
+'Indigenous forest gardens',
+'Mass timber',
+'Global Footprint Network',
+'Regulations',
+'Business Act On Climate Pledge',
+'Paris Agreement']
+
+const noteSuggPreChoices_SpaceTravel = ['Nazi Germany',
+'Cold War',
+'Sputnik 1',
+'Explorer 1',
+'Moon Race',
+'Apollo 11',
+'Apollo Soyuz Test Project',
+'International Space Station',
+'Tiangong Space Station',
+'United States',
+'DARPA and NASA',
+'Soviet Union',
+'Russian Federal Space Agency (Roskosmos)',
+'Ministry of General Machine Building',
+'Strategic Missle Forces',
+'Europe',
+'European Space Agency',
+'China',
+'China Aerospace Science and Technology Corportation',
+'China National Space Administration',
+'Japan',
+'Japan Aerospace Exploration Agency',
+'Space stations',
+'Soviet space station Salyut',
+'U.S space station Skylab',
+'China space station Tiangong-1',
+'China space station Tiangong-2',
+'Space shuttle',
+'Challenger shuttle disaster',
+'Colombia shuttle disaster',
+'Satellite communication',
+'Satellite communication homeland defense',
+'Satellite communication weather surveillance',
+'Satellite communication navigation',
+'Satellite communication disasters',
+'Kepler Space Telescope',
+'Mariner spacecraft',
+'Voyager',
+"NASA's Commerical Crew Program",
+'Space X reusable rocket development',
+'Space X Dragon capsule',
+'Space X Falcon Heavy',
+'Blue Origin sub-orbital space tourism',
+'Virgin Galactic sub-orbital space tourism',
+'Satellite Maxx Production',
+'Commerical Resupply Services (CRS)',
+'Artemis Program',
+'Artemis Program Lunar economy',
+'Artemis Program Helium-3',
+'Space-based solar power',
+'Asteroid mining',
+'Space hotels',
+'Aurora Station',
+'Bigelow Aerospace',
+'2015 SPACE Act',
+'Federal Aviation Administration (FAA)',
+'FAA Recommended Practices',
+'National Environmental Policy and Clean Air',
+'Class II Airman Medical Certification',
+'U.S. Commercial Space Launch Competitiveness Act']
+
+const lineSuggPreChoices_SpaceTravel = ['International space alliance ',
+'Commtttee on the Peaceful Uses of Outer Space',
+'Outer Space Treaty',
+'The Wolf Amendment',
+'International Lunar Research Station',
+'Climate Change',
+'Climate Change rocket emissions',
+'Climate Change sea ice loss',
+'Climate Change ozone layer depletion',
+'Climate Change temperature increases',
+'International space agencies with commercial purposes',
+'International Telecommunications Union',
+'International Telecommunications Satellite Consortium', 
+'International Maritime Satellite Organization', 
+'Space exploration lost political support',
+"NASA's budget peaked during Apollo program"]
 
 
 miro.onReady(async () => {
 
+    let board = await miro.board.info.get()
+    board_id=board.id
+    getStudyDesign()
+
 })
 
-async function addSuggestionCircle(){
-    let widgets=await miro.board.selection.get()
-    widgets=widgets.filter(widget => Object.keys(widget.metadata).length==0)
-    if(widgets.length!=1){
+async function updateLists(){
+    let widgets = await miro.board.widgets.get()
+    let noteSugg = getNoteWizSuggestions(widgets)
+
+    let wizardTopic = document.getElementById('wizardTopic')
+    let noteSuggStr = removeExistSuggFromWizardSugg('cluster', noteSugg, wizardTopic.value)
+    let noteSuggChoices = document.getElementById('noteSuggestionChoices')
+
+    noteSuggChoices.innerHTML = noteSuggStr
+
+    let lineSugg = getLineWizSuggestions(widgets)
+    let lineSuggStr = removeExistSuggFromWizardSugg('cross-polination', lineSugg, wizardTopic.value)
+
+    let lineSuggChoices = document.getElementById('lineSuggestionChoices')
+
+    lineSuggChoices.innerHTML = lineSuggStr
+}
+
+function getStudyDesign(){
+    fetch('/studyDesign?boardId=' + board_id).then(
+        response => response.json()
+    ).then(function (data) {
+        console.log('HTTP Request received!');
+        let studyType = document.getElementById('studyType')
+        studyType.value = data.studyType
+        let wizardTopic = document.getElementById('wizardTopic')
+        wizardTopic.value = data.topicTask
+
+        updateLists()
+    });
+}
+
+function setStudyDesign(){
+    let studyType = document.getElementById('studyType')
+    let wizardTopic = document.getElementById('wizardTopic')
+    fetch('/studyDesign?boardId=' + board_id, {
+
+        // Declare what type of data we're sending
+        headers: {
+            'Content-Type': 'application/json'
+        },
+
+        // Specify the method
+        method: 'POST',
+
+        // A JSON payload
+        body: JSON.stringify({
+            "studyType": studyType.value,
+            "topicTask": wizardTopic.value
+        })
+    }).then(function (response) {
+        console.log(response.text());
+    }).then(function (text) {
+        // Should be 'OK' if everything was successful
+        console.log(text)
+    });
+    setWizardSuggestions(wizardTopic)
+}
+
+function insertWizardLineSuggestions(queryText, parentIdA, parentIdB){
+    database.ref('wizard_suggestions/' + board_id).set({
+        text: queryText,
+        type: 'Line',
+        parentIdA: parentIdA,
+        parentIdB: parentIdB,
+        timestamp: Date()
+    });
+}
+
+function insertWizardNoteSuggestions(queryText, type, parentId){
+    database.ref('wizard_suggestions/' + board_id).set({
+        text: queryText,
+        type: 'Note',
+        parentIdA: parentId,
+        parentIdB: null,
+        timestamp: Date()
+    });
+}
+
+function removeExistSuggFromWizardSugg(listType, existSuggList, wizardTopic) {
+    let noteSuggPreChoices;
+    let noteSuggStr = ''
+    let lineSuggStr = ''
+
+    if (wizardTopic == 'COVID-19') {
+        noteSuggPreChoices = noteSuggPreChoices_COVID19;
+        lineSuggPreChoices = lineSuggPreChoices_COVID19
+    } else if (wizardTopic == 'Space Travel') {
+        noteSuggPreChoices = noteSuggPreChoices_SpaceTravel;
+        lineSuggPreChoices = lineSuggPreChoices_SpaceTravel;
+    }
+    if (listType == 'cluster') {
+        existSuggList.forEach(widget => {
+            widget.metadata[client_id].text.forEach(text => {
+                let index = noteSuggPreChoices.indexOf(text)
+                if (index > -1) {
+                    noteSuggPreChoices.splice(index, 1);
+                }
+            })
+        })
+
+        noteSuggPreChoices.forEach(sugg => {
+            noteSuggStr += '<option value="' + sugg + '"/>'
+        })
+
+        return noteSuggStr;
+    } else if (listType == 'cross-polination') {
+        existSuggList.forEach(widget => {
+            widget.metadata[client_id].text.forEach(text => {
+                let index = lineSuggPreChoices.indexOf(text)
+                if (index > -1) {
+                    lineSuggPreChoices.splice(index, 1);
+                }
+            })
+        })
+        lineSuggPreChoices.forEach(sugg => {
+            lineSuggStr += '<option value="' + sugg + '"/>'
+        })
+        return lineSuggStr;
+    } else {
+        console.log('Enter valid suggestion type!')
+    }
+}
+
+function getNoteWizSuggestions(widgets) {
+
+    noteSugg = widgets.filter(widget => Object.keys(widget.metadata).length != 0
+        && widget.metadata[client_id].type == 'NoteSuggestion')
+    return noteSugg
+}
+
+function getLineWizSuggestions(widgets) {
+    lineSugg = widgets.filter(widget => Object.keys(widget.metadata).length != 0
+        && widget.metadata[client_id].type == 'LineSuggestion')
+    return lineSugg
+}
+
+async function addSuggestionCircle() {
+    let widgets = await miro.board.selection.get({ metadata: {} } || {
+        metadata: {
+            [client_id]: {
+                type: 'Cluster'
+            }
+        }
+    } || {
+        metadata: {
+            [client_id]: {
+                type: 'ClusterTitle'
+            }
+        }
+    }|| {
+        metadata: {
+            [client_id]: {
+                type: 'Topic'
+            }
+    }});
+    //widgets=widgets.filter(widget => Object.keys(widget.metadata).length==0)
+    if (widgets.length != 1) {
         miro.showNotification('Please select 1 text box/shape/sticky note first!')
-    }else{
-        let textElements=[];
+    } else {
+        let textElements = [];
         let textElement1 = document.getElementById('noteSuggestionText1')
-        if(textElement1.value.trim()!==''){
-            textElements[0]=textElement1.value
+        let i = 0;
+        if (textElement1.value.trim() !== '') {
+            textElements[i++] = textElement1.value
         }
-        let textElement2= document.getElementById('noteSuggestionText2')
-        if(textElement2.value.trim()!==''){
-            textElements[1]=textElement2.value
+        let textElement2 = document.getElementById('noteSuggestionText2')
+        if (textElement2.value.trim() !== '') {
+            textElements[i++] = textElement2.value
         }
-        let textElement3= document.getElementById('noteSuggestionText3')
-        if(textElement3.value.trim()!==''){
-            textElements[2]=textElement3.value
+        let textElement3 = document.getElementById('noteSuggestionText3')
+        if (textElement3.value.trim() !== '') {
+            textElements[i++] = textElement3.value
         }
-        if(textElements.length!=0){
-            socket.emit('test', {
+        if (textElements.length != 0) {
+            let parentType = Object.keys(widgets[0].metadata).length!==0 ? widgets[0].metadata[client_id].type : widgets[0].type
+            let appendTextToQuery = parentType=='ClusterTitle' || (Object.keys(widgets[0].metadata).length==0 && widgets[0].plainText.length < 50)
+
+            socket.emit('wizardSuggestion', {
                 type: 'addSuggestionCircle',
+                parentText: widgets[0].plainText,
+                parentType: parentType,
                 text: textElements,
                 x: widgets[0].bounds.right,
                 y: widgets[0].bounds.top,
-                parentId: widgets[0].id
+                parentId: widgets[0].id,
+                board_id: board_id,
+                appendTextToQuery: appendTextToQuery
             })
-        }else{
+
+            let noteSuggChoices = document.getElementById('noteSuggestionChoices')
+            noteSuggChoices.innerHTML = noteSuggChoices.innerHTML.replace('<option value="' + textElement1.value + '"></option>', '')
+            noteSuggChoices.innerHTML = noteSuggChoices.innerHTML.replace('<option value="' + textElement2.value + '"></option>', '')
+            noteSuggChoices.innerHTML = noteSuggChoices.innerHTML.replace('<option value="' + textElement3.value + '"></option>', '')
+            textElement1.value = ''
+            textElement2.value = ''
+            textElement3.value = ''
+        } else {
             miro.showNotification('No text entered!')
         }
     }
-    
+
 }
 
-async function addSuggestionLine(){
-    let widgets=await miro.board.selection.get()
-    widgets=widgets.filter(widget => Object.keys(widget.metadata).length==0)
-    if(widgets.length!=2){
+async function addSuggestionLine() {
+    let widgets = await miro.board.selection.get({ metadata: {} } || {
+        metadata: {
+            [client_id]: {
+                type: 'Cluster'
+            }
+        }
+    } || {
+        metadata: {
+            [client_id]: {
+                type: 'ClusterTitle'
+            }
+        }
+    } || {
+        metadata: {
+            [client_id]: {
+                type: 'Topic'
+            }
+        }})
+    //widgets=widgets.filter(widget => Object.keys(widget.metadata).length==0)
+    if (widgets.length != 2) {
         miro.showNotification('Please select 2 text boxes/shapes/sticky notes to connect (You can select multiple items using the ctrl button).')
-    }else{
-        
-        let textElements=[];
+    } else {
+
+        let textElements = [];
         let textElement1 = document.getElementById('lineSuggestionText1')
-        if(textElement1.value.trim()!==''){
-            textElements[0]=textElement1.value
+        let i = 0;
+        if (textElement1.value.trim() !== '') {
+            textElements[i++] = textElement1.value
         }
-        let textElement2= document.getElementById('lineSuggestionText2')
-        if(textElement2.value.trim()!==''){
-            textElements[1]=textElement2.value
+        let textElement2 = document.getElementById('lineSuggestionText2')
+        if (textElement2.value.trim() !== '') {
+            textElements[i++] = textElement2.value
         }
-        let textElement3= document.getElementById('lineSuggestionText3')
-        if(textElement3.value.trim()!==''){
-            textElements[2]=textElement3.value
+        let textElement3 = document.getElementById('lineSuggestionText3')
+        if (textElement3.value.trim() !== '') {
+            textElements[i++] = textElement3.value
         }
-        if(textElements.length!=0){
-            socket.emit('test', {
+        if (textElements.length != 0) {
+            let parentAType = Object.keys(widgets[0].metadata).length!==0 ? widgets[0].metadata[client_id].type : widgets[0].type
+            let parentBType = Object.keys(widgets[1].metadata).length!==0 ? widgets[1].metadata[client_id].type : widgets[1].type
+            let appendTextToQuery= (parentAType=='ClusterTitle' && parentBType=='ClusterTitle')
+            //console.log(parentText)
+            socket.emit('wizardSuggestion', {
                 type: 'addSuggestionLine',
+                parentAText: widgets[0].plainText,
+                parentBText: widgets[1].plainText,
+                parentAType: parentAType,
+                parentBType: parentBType,
                 startWidgetId: widgets[0].id,
                 endWidgetId: widgets[1].id,
                 text: textElements,
+                board_id: board_id,
+                appendTextToQuery: appendTextToQuery
             })
-        }else{
+            //Delete text inside lineSuggestionTexts
+            let lineSuggChoices = document.getElementById('lineSuggestionChoices')
+            lineSuggChoices.innerHTML = lineSuggChoices.innerHTML.replace('<option value="' + textElement1.value + '"></option>', '')
+            lineSuggChoices.innerHTML = lineSuggChoices.innerHTML.replace('<option value="' + textElement2.value + '"></option>', '')
+            lineSuggChoices.innerHTML = lineSuggChoices.innerHTML.replace('<option value="' + textElement3.value + '"></option>', '')
+            textElement1.value = ''
+            textElement2.value = ''
+            textElement3.value = ''
+        } else {
             miro.showNotification('No text entered!')
         }
     }
+}
+
+async function setWizardSuggestions(wizardTopic) {
+    var topic = wizardTopic.value;
+
+    let widgets = await miro.board.widgets.get()
+    let noteSugg = getNoteWizSuggestions(widgets)
+
+    let noteSuggStr = removeExistSuggFromWizardSugg('cluster', noteSugg, topic)
+    let noteSuggChoices = document.getElementById('noteSuggestionChoices')
+
+    noteSuggChoices.innerHTML = noteSuggStr
+
+    let lineSugg = getLineWizSuggestions(widgets)
+    let lineSuggStr = removeExistSuggFromWizardSugg('cross-polination', lineSugg, topic)
+
+    let lineSuggChoices = document.getElementById('lineSuggestionChoices')
+
+    lineSuggChoices.innerHTML = lineSuggStr
+
+
 }

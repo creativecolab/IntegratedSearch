@@ -6,21 +6,43 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
         integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
         crossorigin="anonymous"></script>
+    <script src="https://miro.com/app/static/sdk.1.1.js"></script>
+    
     <style>
         .btnLbl {
             margin: auto;
             text-align: left;
+            font-family: 'Times New Roman';
+        }
+        .textInput{
+            font-family: 'Times New Roman';
         }
     </style>
-    <script src="https://miro.com/app/static/sdk.1.1.js"></script>
 </head>
 
 <body>
+    
     <div class="scrollable-container">
         <div class="scrollable-content">
+            <a href="/sidebar.html">Navigate to current list of suggestions.</a>
+            <br>
+            <br>
+            <label for="studyType">Set Study Type: </label>
+            <select name="studyType" id='studyType'>
+                <option value="Sidebar">Show Sidebar</option>
+                <option value="On Board">Show on board</option>
+                <option value="Both">Show both</option>
+            </select>
+            <br>
+            <br>
+            <label for="wizardTopics">Topic for study:</label>
+            <select name="wizardTopics" id='wizardTopic' onchange='setWizardSuggestions(this)'>
+                <option value="">None</option>
+                <option value="COVID-19">Environmental Impacts of COVID-19</option>
+                <option value="Space Travel">Futurization of Space Travel</option>
+            </select>
+            <input type="submit" value="Submit" onclick="setStudyDesign()">
             <div>
-                <a href="/sidebar.html">Navigate to current list of suggestions.</a>
-                <br>
 
                 <h4>Add suggestion for note</h4>
                 <div class='queryTexts'>
@@ -37,7 +59,6 @@
                         <input type="text" id="noteSuggestionText3" name="noteSuggestionText" list="noteSuggestionChoices"><br><br>
                     </div>
                     <datalist id="noteSuggestionChoices">
-                        <option></option>
                     </datalist>
                 </div>
                 
@@ -63,15 +84,15 @@
                         <input type="text" id="lineSuggestionText3" name="lineSuggestionText" list="lineSuggestionChoices"><br><br>
                     </div>
                     <datalist id="lineSuggestionChoices">
-                        <option></option>
                     </datalist>
                 </div>
-                <p class='btnLbl'>Highlight 2 text boxes/sticky notes/shapes<br> to add line to a, then click submit
+                <p class='btnLbl'>Highlight 2 text boxes/sticky notes/shapes<br> to add line to, then click submit
                     below.</p>
                 <input type="submit" value="Submit" onclick='addSuggestionLine()'>
             </div>
         </div>
     </div>
+    
     <script src="{{url_for('static', filename='wizardSidebar.js')}}"></script>
 </body>
 

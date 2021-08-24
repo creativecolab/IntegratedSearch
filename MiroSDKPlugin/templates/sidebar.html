@@ -6,7 +6,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
     integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
     crossorigin="anonymous"></script>
-  <style>
+  <script>
+    function css_browser_selector(u){var ua=u.toLowerCase(),is=function(t){return ua.indexOf(t)>-1},g='gecko',w='webkit',s='safari',o='opera',m='mobile',h=document.documentElement,b=[(!(/opera|webtv/i.test(ua))&&/msie\s(\d)/.test(ua))?('ie ie'+RegExp.$1):is('firefox/2')?g+' ff2':is('firefox/3.5')?g+' ff3 ff3_5':is('firefox/3.6')?g+' ff3 ff3_6':is('firefox/3')?g+' ff3':is('gecko/')?g:is('opera')?o+(/version\/(\d+)/.test(ua)?' '+o+RegExp.$1:(/opera(\s|\/)(\d+)/.test(ua)?' '+o+RegExp.$2:'')):is('konqueror')?'konqueror':is('blackberry')?m+' blackberry':is('android')?m+' android':is('chrome')?w+' chrome':is('iron')?w+' iron':is('applewebkit/')?w+' '+s+(/version\/(\d+)/.test(ua)?' '+s+RegExp.$1:''):is('mozilla/')?g:'',is('j2me')?m+' j2me':is('iphone')?m+' iphone':is('ipod')?m+' ipod':is('ipad')?m+' ipad':is('mac')?'mac':is('darwin')?'mac':is('webtv')?'webtv':is('win')?'win'+(is('windows nt 6.0')?' vista':''):is('freebsd')?'freebsd':(is('x11')||is('linux'))?'linux':'','js']; c = b.join(' '); h.className += ' '+c; return c;}; css_browser_selector(navigator.userAgent);
+  </script>
+  <style type="text/css">
     html,
     body {
       height: 100%;
@@ -36,6 +39,7 @@
       position: relative;
       /* vertical-align: middle; */
       display: block;
+      height: 6.5em;
     }
 
     .card {
@@ -101,14 +105,20 @@
       vertical-align: middle;
       margin-top: 15px;
       margin-bottom: 15px;
+      font-family: 'Times New Roman';
     }
 
-    .iconLine {
+    .chrome .iconLine {
       font-size: 40px;
+    }
+
+    .iconLine{
+      font-size: 20px;
       color: black;
       vertical-align: middle;
       margin-top: 25px;
       margin-bottom: 25px;
+      font-family: 'Times New Roman';
     }
 
     .iconDiv {
@@ -120,6 +130,7 @@
       margin: 0;
       display: inline-block;
       margin-left: 5px;
+      font-family: 'Times New Roman';
     }
 
 
@@ -197,6 +208,7 @@
 
     .textDesc{
       margin-left:10px;
+      font-family: 'Times New Roman';
     }
 
   </style>
@@ -205,19 +217,20 @@
 
 <body>
   <div class="scrollable-container">
-    <div class="scrollable-content">
-      <div class="switches">
-        <label class="switch">
+    <div class="scrollable-content" id='sidebar'>
+      <h3 style="margin-left: 10px">Suggestions List</h3>
+      <div class="switches" id='switchesDiv'>
+        <!-- <label class="switch">
           <input type="checkbox" onclick="changeCircleSuggestionVisibility()">
           <span class="slider round"></span>
         </label>
-        <p class="switchtext">Hide Circle Suggestions</p>
+        <p class="switchtext">Hide Note Suggestions</p>
         <br>
         <label class="switch">
           <input type="checkbox" onclick="changeLineSuggestionVisibility()">
           <span class="slider round"></span>
         </label>
-        <p class="switchtext">Hide Line Suggestions</p>
+        <p class="switchtext">Hide Line Suggestions</p> -->
       </div>
       <ul class='list' id="list">
       </ul>

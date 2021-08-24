@@ -2,7 +2,9 @@
 <html lang="en">
 
 <head>
-  <title>Drag and drop</title>
+  <script src="https://miro.com/app/static/sdk.1.1.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
+  <script src="{{url_for('static', filename='toolbar.js')}}"></script>
   <style>
     html,
     body {
@@ -28,6 +30,7 @@
     .btnLbl{
       margin: auto;
       text-align: center;
+      font-family: 'Times New Roman';
     }
 
     .btnDiv{
@@ -45,15 +48,16 @@
 
     .warning {
       font-size: 10px;
-      font-style: italic;
+      font-style: normal;
       text-align: center;
+      font-family: 'Times New Roman';
     }
   </style>
 </head>
 
 <body>
   <div class="scrollable-container">
-    <div class="scrollable-content">
+    <div class="scrollable-content" id='scrollable-content'>
       <div class='btnDiv' onclick='addClusterGroup()'>
         <input type='image' src='/static/clusterGroup.png' height="100px" width="100px" class='btn'>
         <p class='btnLbl'>Add grouping</p>
@@ -69,9 +73,6 @@
       </div>
     </div>
   </div>
-  <script src="https://miro.com/app/static/sdk.1.1.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
-  <script src="{{url_for('static', filename='toolbar.js')}}"></script>
-</body>
+  </body>
 
 </html>

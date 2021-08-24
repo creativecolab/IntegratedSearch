@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
+        integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
+        crossorigin="anonymous"></script>
+    <script src="https://miro.com/app/static/sdk.1.1.js"></script>
+    
+    <style>
+        .listDiv {
+            vertical-align: top;
+            display: inline-block;
+            width: 30%;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="{{url_for('static', filename='wizardPhrases.js')}}"></script>
+    <h1>Wizarding Suggestions</h1>
+    <label for="boardId">Connect to BoardId: </label>
+    <input type="text" id="boardId" name="boardId" >
+    <input type="submit" value="Submit" onclick="connectToWizardRoom()">
+    <h4 id='queryText'></h4>
+    <div>
+        <h2>Noun Phrases</h2>
+        <div class='listDiv'>
+            <h3>Google Suggestions:</h3>
+            <ol id='suggestions'></ol>
+        </div>
+        <div class='listDiv'>
+            <h3>Google Snippets:</h3>
+            <ol id='snippets'></ol>
+        </div>
+        <div class='listDiv'>
+            <h3>Visited Webpages:</h3>
+            <ol id='articles'></ol>
+        </div>
+        <div class='listDiv'>
+            <h3>Miro Board Notes:</h3>
+            <ol id='miro'></ol>
+        </div>
+    </div>
+</body>
+
+</html>

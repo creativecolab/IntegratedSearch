@@ -1,0 +1,13 @@
+'Commuttee on the Peaceful Uses of Outer Space',
+'Outer Space Treaty',
+'The Wolf Amendment',
+'International Lunar Research Station',
+'Climate Change rocket emissions',
+'Climate Change sea ice loss',
+'Climate Change ozone layer depletion',
+'Climate Change temperature increases',
+'International Telecommunications Union',
+'International Telecommunications Satellite Consortium', 
+'International Maritime Satellite Organization', 
+'Space exploration lost political support',
+'NASA's budget peaked during Apollo program'
