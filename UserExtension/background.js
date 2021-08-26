@@ -1,4 +1,12 @@
+chrome.action.onClicked.addListener(async (tab) => {
+  await splitScreen()
+})
+
 chrome.runtime.onInstalled.addListener(async () => {
+  await splitScreen()
+});
+
+async function splitScreen(){
   chrome.storage.sync.set({ 'pluginInstalled': false });
   chrome.storage.sync.set({ 'onMiroBoard': '' });
   chrome.storage.sync.set({ 'MiroBoardId': '' });
@@ -29,9 +37,7 @@ chrome.runtime.onInstalled.addListener(async () => {
     left: properLeft,
     top: properTop
   })
-});
-
-//add listener for tab onremoved, which sets onMiroBoard to '' if Miro board tab is deleted
+}
 
 chrome.tabs.onUpdated.addListener(checkTab)
 chrome.tabs.onRemoved.addListener(checkRemoved)

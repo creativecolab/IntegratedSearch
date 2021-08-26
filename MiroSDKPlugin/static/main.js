@@ -18,7 +18,7 @@ const modes = {
 }
 
 var socket = io();
-var mode = modes.ENABLE_BOTH
+var mode = modes.ENABLE_WIDGETS
 let topic_task;
 
 
@@ -60,6 +60,7 @@ function showCoordinates(event) {
 }
 
 function openSidebar() {
+    //add socket connection to log sidebar open to database
     if (USER_IS_WIZARD) {
         miro.board.ui.openLeftSidebar('/wizardSidebar.html')
     } else {
@@ -109,6 +110,16 @@ async function createSuggestionLine(startWidgetID, endWidgetID, text, parentText
     await createSuggestionCircle(text, circleCoord.x, circleCoord.y, line[0].id, parentText, 'line')
 }
 
+
+/**
+ * Creates suggestion attached to widget
+ * @param {String[]} text 
+ * @param {*} x 
+ * @param {*} y 
+ * @param {*} parentID 
+ * @param {*} parentText 
+ * @param {*} type 
+ */
 async function createSuggestionCircle(text, x, y, parentID, parentText, type) {
     //console.log(x + ' ' + y)
     console.log(parentText)
@@ -134,7 +145,7 @@ async function createSuggestionCircle(text, x, y, parentID, parentText, type) {
             height: 50,
             text: '🔎︎',
             style: {
-                backgroundColor: '#FFFFFF',
+                backgroundColor: '#AAFF00',
                 borderOpacity: 1,
                 fontSize: 20,
                 shapeType: miro.enums.shapeType.CIRCLE,
@@ -161,7 +172,7 @@ async function createSuggestionCircle(text, x, y, parentID, parentText, type) {
             height: 50,
             text: '🔎︎',
             style: {
-                backgroundColor: '#FFFFFF',
+                backgroundColor: '#AAFF00',
                 borderOpacity: 1,
                 fontSize: 20,
                 shapeType: miro.enums.shapeType.CIRCLE,
@@ -247,11 +258,61 @@ function createUrlFromText(cardText, parentText) {
     return url
 }
 
-async function createPopupSearchWindow(x, y, text, parentID, parentText) {
+/**
+ * Creates Pop up query window after clicking on suggestion
+ * @param {*} x X position
+ * @param {*} y Y position
+ * @param {String[]} text Query Suggestions
+ * @param {String[]} parentID Contains parent widget IDs, with first ID being suggestion circle 
+ */
+async function createPopupSearchWindow(x, y, text, parentID) {
+    
     //let url = createUrlFromText(text)
+    let suggestionCircle = await miro.board.widgets.get({id: parentID[0]})
+    let parentText;
+    let parent = await miro.board.widgets.get({id: suggestionCircle[0].metadata[client_id].parentId})
+    let suggestionType = suggestionCircle[0].metadata[client_id].type
+    if(suggestionType=='NoteSuggestion'){
+        let parentType = Object.keys(parent[0].metadata).length!==0 ? parent[0].metadata[client_id].type : parent[0].type
+        let appendTextToQuery = parentType=='ClusterTitle' || (Object.keys(parent[0].metadata).length==0 && parent[0].plainText.length < 50)
+        parentText = appendTextToQuery ? parent[0].plainText : null
+        socket.emit('popup', {
+            'boardId': board_id,
+            'text': text,
+            'type': suggestionType,
+            'parentA': {
+                parentId: suggestionCircle[0].metadata[client_id].parentId,
+                parentText: parent[0].plainText,
+                parentType: parentType
+            }
+        })
+    }else if (suggestionType=='LineSuggestion'){
+        let parentA = await miro.board.widgets.get({id: parent[0].startWidgetId})
+        let parentB = await miro.board.widgets.get({id: parent[0].endWidgetId})
+        let parentAtype = Object.keys(parentA[0].metadata).length!==0 ? parentA[0].metadata[client_id].type : parentA[0].type
+        let parentBtype = Object.keys(parentB[0].metadata).length!==0 ? parentB[0].metadata[client_id].type : parentB[0].type
+        let appendTextToQuery = (parentAtype=='ClusterTitle' && parentBtype=='ClusterTitle')
+        parentText = appendTextToQuery ? parentA[0].plainText + ' ' + parentB[0].plainText : null
+        socket.emit('popup', {
+            'boardId': board_id,
+            'text': text,
+            'type': suggestionType,
+            'parentA': {
+                parentId: parent[0].startWidgetId,
+                parentText: parentA[0].plainText,
+                parentType: parentAtype
+            },
+            'parentB': {
+                parentId: parent[0].endWidgetId,
+                parentText: parentB[0].plainText,
+                parentType: parentBtype
+            }
+        })
+    }
     if (topic_task == null) {
         topic_task = await getTaskTopic()
     }
+    
     let HTMLtext = createHTMLFromText(text, parentText)
     console.log(HTMLtext)
     await miro.board.widgets.create({
@@ -366,9 +427,15 @@ async function getLineMidpoint(line) {
     }
 }
 
+/**
+ * When suggestion is clicked, have popup query windows appear.
+ * @param {*} event 
+ * @returns 
+ */
 async function selectionClicked(event) {
     //console.log(event.data)
     let widgets = await miro.board.selection.get()
+    console.log(widgets)
     if (widgets.length == 1) {
         let eventMetadata = event.data
         try {
@@ -384,6 +451,7 @@ async function selectionClicked(event) {
         let coord;
         switch (type) {
             case 'LineSuggestion':
+                await suggestionClicked(widgets[0].id)
                 let lineId = widgets[0].metadata[client_id].parentId
                 removePopups()
                 coord = {
@@ -401,11 +469,12 @@ async function selectionClicked(event) {
                         board_id: board_id
                     })
                 } else {
-                    createPopupSearchWindow(coord.x, coord.y, widgets[0].metadata[client_id].text, [widgets[0].id, lineId], widgets[0].metadata[client_id].parentText)
+                    createPopupSearchWindow(coord.x, coord.y, widgets[0].metadata[client_id].text, [widgets[0].id, lineId])
                 }
 
                 break;
             case 'NoteSuggestion':
+                await suggestionClicked(widgets[0].id)
                 removePopups()
                 coord = {
                     x: x + 170,
@@ -419,11 +488,11 @@ async function selectionClicked(event) {
                         y: coord.y,
                         text: widgets[0].metadata[client_id].text,
                         parentText: widgets[0].metadata[client_id].parentText,
-                        id: widgets[0].id,
+                        id: [widgets[0].id],
                         board_id: board_id
                     })
                 } else {
-                    createPopupSearchWindow(coord.x, coord.y, widgets[0].metadata[client_id].text, widgets[0].id, widgets[0].metadata[client_id].parentText)
+                    createPopupSearchWindow(coord.x, coord.y, widgets[0].metadata[client_id].text, [widgets[0].id])
                 }
 
                 break;
@@ -438,6 +507,7 @@ async function selectionClicked(event) {
                         }
                     }
                 })
+                await suggestionClicked(dotSuggestion[0].id)
                 removePopups()
                 coord = {
                     x: dotSuggestion[0].x + 170,
@@ -458,8 +528,7 @@ async function selectionClicked(event) {
                         coord.x,
                         coord.y,
                         dotSuggestion[0].metadata[client_id].text,
-                        [dotSuggestion[0].id, widgets[0].id],
-                        dotSuggestion[0].metadata[client_id].parentText);
+                        [dotSuggestion[0].id, widgets[0].id]);
                 }
                 break;
             case 'Reject':
@@ -474,6 +543,15 @@ async function selectionClicked(event) {
             removePopups()
         }
     }
+}
+
+async function suggestionClicked(widgetId){
+    await miro.board.widgets.update({id: widgetId, style: {
+        backgroundColor: '#ECFFDC',
+        borderOpacity: 1,
+        fontSize: 20,
+        shapeType: miro.enums.shapeType.CIRCLE,
+    }, text: '🔎︎'})
 }
 
 /**
@@ -542,13 +620,10 @@ async function acceptLineSuggestion(widgetId) {
 async function widgetMoved(event) {
     await removePopups()
     let widgetIds = event.data.map(widget => widget.id)
-    //console.log(widgetIds)
     let widgets = await miro.board.widgets.get()
     let customWidgets = widgets.filter(widget => Object.keys(widget.metadata).length !== 0)
     let widgetsToCheck = customWidgets.filter(widget => widget.metadata[client_id].type == 'Line'
         || widget.metadata[client_id].type == 'NoteSuggestion')
-    //console.log(widgetsToCheck)
-    //console.log(customWidgets)
     widgetsToCheck.forEach(async (widget) => {
         if (widgetIds.includes(widget.metadata[client_id].parentId)) {
             let parentId = widget.metadata[client_id].parentId
@@ -618,17 +693,18 @@ async function addSuggestionFromWizard(widget) {
     socket.emit('widget', { type: 'SHAPE' })
 }
 
-async function sendWidgetTextToWizard() {
+/**
+ * Send all widgets on board and in viewport to database 
+ */
+async function sendWidgetsToWizard() {
     let widgets = await miro.board.widgets.get();
-
-    // let widgetTypes = ['SHAPE', 'STICKER', 'TEXT']
-    // let customWidgetTypes = ['Topic', 'Cluster', 'ClusterTitle']
-    // let widgetsFiltered = widgets.filter(widget => widgetTypes.includes(widget.type))
-    // widgetsFiltered = widgetsFiltered.filter(widget => Object.keys(widget.metadata).length == 0 ||
-    //     customWidgetTypes.includes(widget.metadata[client_id].type))
-    // let widgetTexts = widgetsFiltered.map(widget => widget.plainText)
     socket.emit('widgets', { boardId: board_id, widgets: widgets })
-    setTimeout(sendWidgetTextToWizard, 60000);
+
+    let viewport = await miro.board.viewport.get()
+    let viewportwidgets = await miro.board.widgets.__getIntersectedObjects(viewport)
+    socket.emit('viewportWidgets', { boardId: board_id, widgets: viewportwidgets })
+
+    setTimeout(sendWidgetsToWizard, 60000);
 }
 
 async function getStudyDesign(){
@@ -636,6 +712,7 @@ async function getStudyDesign(){
         response => response.json()
     ).then(function (data) {
         console.log('HTTP Request received!');
+        if(data==null) return;
         if(data.studyType=='On Board'){
             mode = modes.ENABLE_WIDGETS
         }else if (data.studyType=='Sidebar'){
@@ -656,6 +733,7 @@ miro.onReady(async () => {
 
     let board = await miro.board.info.get()
     board_id = board.id
+    console.log(board_id)
     await getStudyDesign()
 
     socket.emit('connectToRoom', { board_id: board_id })
@@ -668,7 +746,7 @@ miro.onReady(async () => {
             && (customWidgetTypes.includes(widget.metadata[client_id].type)))
         await hideWidgets(customWidgets)
     }
-    if ((USER_IS_WIZARD && mode == modes.ENABLE_SIDEBAR) || (!USER_IS_WIZARD && mode == modes.ENABLE_WIDGETS)) {
+    if (!USER_IS_WIZARD && mode == modes.ENABLE_WIDGETS) {
         miro.addListener(miro.enums.event.SELECTION_UPDATED, selectionClicked)
     }
     if (mode == modes.ENABLE_WIDGETS) {
@@ -677,7 +755,7 @@ miro.onReady(async () => {
     await removePopups()
 
     if (!USER_IS_WIZARD) {
-        await sendWidgetTextToWizard()
+        await sendWidgetsToWizard()
     }
     //miro.addListener(miro.enums.event.WIDGETS_CREATED, changeVisibility)
 
@@ -704,10 +782,22 @@ miro.onReady(async () => {
                 }
 
             } else if (data.type = 'createPopup') {
-                await createPopupSearchWindow(data.x, data.y, data.text, data.id, data.parentText)
+                await createPopupSearchWindow(data.x, data.y, data.text, data.id)
             }
         }
 
+    })
+
+    socket.on('showSidebar', async(data) => {
+        if(!USER_IS_WIZARD){
+            openSidebar()
+        }
+    })
+
+    socket.on('hideSidebar', async(data) => {
+        if(!USER_IS_WIZARD){
+            miro.board.ui.closeLeftSidebar()
+        }
     })
 
 
@@ -716,11 +806,11 @@ miro.onReady(async () => {
         miro.initialize({
             extensionPoints: {
                 toolbar: {
-                    title: 'Suggestion Library',
+                    title: 'Cluster Library',
                     toolbarSvgIcon: icon,
                     librarySvgIcon: icon,
                     onClick: async () => {
-                        miro.board.ui.openLibrary('toolbar.html', { title: 'Suggestion Library' })
+                        miro.board.ui.openLibrary('toolbar.html', { title: 'Cluster Library' })
                     }
                 }
             },
@@ -729,11 +819,12 @@ miro.onReady(async () => {
         miro.initialize({
             extensionPoints: {
                 toolbar: {
-                    title: 'Suggestion Library',
+                    title: 'Cluster Library',
                     toolbarSvgIcon: icon,
                     librarySvgIcon: icon,
                     onClick: async () => {
-                        miro.board.ui.openLibrary('toolbar.html', { title: 'Suggestion Library' })
+                        miro.board.ui.openLibrary('toolbar.html', { title: 'Cluster Library' })
+                        
                     }
                 },
                 bottomBar: {

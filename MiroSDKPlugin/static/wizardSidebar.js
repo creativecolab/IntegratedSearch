@@ -1,9 +1,10 @@
 var client_id = "3074457360917723621"
-const wizardIds = ['3074457360917294320', '3074457360807760467']
+const wizardIds = ['3074457360917294320', '3074457360807760467']//first is developerID, second is wizard's ID
 var socket = io();
 var board_id;
+var user_id;
 
-const noteSuggPreChoices_COVID19 = ['Organic and inorganic pollutants ',
+const noteSuggPreChoices_COVID19 = ['Organic and inorganic pollutants',
 'Soap discharge',
 'Air pollution',
 'Air pollution CO2',
@@ -42,7 +43,7 @@ const noteSuggPreChoices_COVID19 = ['Organic and inorganic pollutants ',
 'Biomedical waste']
 
 const lineSuggPreChoices_COVID19 = [
-    'Ecotourism',
+'Ecotourism',
 'National Parks Service',
 'Road Traffic',
 'NO2 and biomass',
@@ -132,7 +133,7 @@ const noteSuggPreChoices_SpaceTravel = ['Nazi Germany',
 'Class II Airman Medical Certification',
 'U.S. Commercial Space Launch Competitiveness Act']
 
-const lineSuggPreChoices_SpaceTravel = ['International space alliance ',
+const lineSuggPreChoices_SpaceTravel = ['International space alliance',
 'Commtttee on the Peaceful Uses of Outer Space',
 'Outer Space Treaty',
 'The Wolf Amendment',
@@ -151,42 +152,33 @@ const lineSuggPreChoices_SpaceTravel = ['International space alliance ',
 
 
 miro.onReady(async () => {
-
+    user_id = await miro.currentUser.getId()
+    //hide study design from wizard
+    if(user_id==wizardIds[1]){
+        let studyDesign= document.getElementById('studyDesign')
+        studyDesign.remove()
+        let submitBtn= document.getElementById('submitBtn')
+        submitBtn.remove()
+    }
     let board = await miro.board.info.get()
     board_id=board.id
-    getStudyDesign()
+    await getStudyDesign()
 
+    setWizardSuggestions(document.getElementById('wizardTopic'))
 })
 
-async function updateLists(){
-    let widgets = await miro.board.widgets.get()
-    let noteSugg = getNoteWizSuggestions(widgets)
-
-    let wizardTopic = document.getElementById('wizardTopic')
-    let noteSuggStr = removeExistSuggFromWizardSugg('cluster', noteSugg, wizardTopic.value)
-    let noteSuggChoices = document.getElementById('noteSuggestionChoices')
-
-    noteSuggChoices.innerHTML = noteSuggStr
-
-    let lineSugg = getLineWizSuggestions(widgets)
-    let lineSuggStr = removeExistSuggFromWizardSugg('cross-polination', lineSugg, wizardTopic.value)
-
-    let lineSuggChoices = document.getElementById('lineSuggestionChoices')
-
-    lineSuggChoices.innerHTML = lineSuggStr
-}
-
-function getStudyDesign(){
-    fetch('/studyDesign?boardId=' + board_id).then(
+async function getStudyDesign(){
+    return await fetch('/studyDesign?boardId=' + board_id).then(
         response => response.json()
     ).then(function (data) {
         console.log('HTTP Request received!');
-        let studyType = document.getElementById('studyType')
-        studyType.value = data.studyType
+        if(user_id==wizardIds[0]){
+            let studyType = document.getElementById('studyType')
+            studyType.value = data.studyType
+        }
         let wizardTopic = document.getElementById('wizardTopic')
         wizardTopic.value = data.topicTask
 
-        updateLists()
     });
 }
 
@@ -208,13 +200,13 @@ function setStudyDesign(){
             "studyType": studyType.value,
             "topicTask": wizardTopic.value
         })
-    }).then(function (response) {
-        console.log(response.text());
-    }).then(function (text) {
-        // Should be 'OK' if everything was successful
-        console.log(text)
+    }).then( (response)=> {
+        return response.text()
+    }).then(text =>{
+
+        let submitSuccess = document.getElementById('submitSuccess')
+        submitSuccess.innerText=text
     });
-    setWizardSuggestions(wizardTopic)
 }
 
 function insertWizardLineSuggestions(queryText, parentIdA, parentIdB){
@@ -322,19 +314,19 @@ async function addSuggestionCircle() {
         let textElement1 = document.getElementById('noteSuggestionText1')
         let i = 0;
         if (textElement1.value.trim() !== '') {
-            textElements[i++] = textElement1.value
+            textElements[i++] = textElement1.value.trim()
         }
         let textElement2 = document.getElementById('noteSuggestionText2')
         if (textElement2.value.trim() !== '') {
-            textElements[i++] = textElement2.value
+            textElements[i++] = textElement2.value.trim()
         }
         let textElement3 = document.getElementById('noteSuggestionText3')
         if (textElement3.value.trim() !== '') {
-            textElements[i++] = textElement3.value
+            textElements[i++] = textElement3.value.trim()
         }
         if (textElements.length != 0) {
             let parentType = Object.keys(widgets[0].metadata).length!==0 ? widgets[0].metadata[client_id].type : widgets[0].type
-            let appendTextToQuery = parentType=='ClusterTitle' || (Object.keys(widgets[0].metadata).length==0 && widgets[0].plainText.length < 50)
+            // let appendTextToQuery = parentType=='ClusterTitle' || (Object.keys(widgets[0].metadata).length==0 && widgets[0].plainText.length < 50)
 
             socket.emit('wizardSuggestion', {
                 type: 'addSuggestionCircle',
@@ -344,8 +336,7 @@ async function addSuggestionCircle() {
                 x: widgets[0].bounds.right,
                 y: widgets[0].bounds.top,
                 parentId: widgets[0].id,
-                board_id: board_id,
-                appendTextToQuery: appendTextToQuery
+                board_id: board_id
             })
 
             let noteSuggChoices = document.getElementById('noteSuggestionChoices')
@@ -390,20 +381,20 @@ async function addSuggestionLine() {
         let textElement1 = document.getElementById('lineSuggestionText1')
         let i = 0;
         if (textElement1.value.trim() !== '') {
-            textElements[i++] = textElement1.value
+            textElements[i++] = textElement1.value.trim()
         }
         let textElement2 = document.getElementById('lineSuggestionText2')
         if (textElement2.value.trim() !== '') {
-            textElements[i++] = textElement2.value
+            textElements[i++] = textElement2.value.trim()
         }
         let textElement3 = document.getElementById('lineSuggestionText3')
         if (textElement3.value.trim() !== '') {
-            textElements[i++] = textElement3.value
+            textElements[i++] = textElement3.value.trim()
         }
         if (textElements.length != 0) {
             let parentAType = Object.keys(widgets[0].metadata).length!==0 ? widgets[0].metadata[client_id].type : widgets[0].type
             let parentBType = Object.keys(widgets[1].metadata).length!==0 ? widgets[1].metadata[client_id].type : widgets[1].type
-            let appendTextToQuery= (parentAType=='ClusterTitle' && parentBType=='ClusterTitle')
+            // let appendTextToQuery= (parentAType=='ClusterTitle' && parentBType=='ClusterTitle')
             //console.log(parentText)
             socket.emit('wizardSuggestion', {
                 type: 'addSuggestionLine',
@@ -414,8 +405,7 @@ async function addSuggestionLine() {
                 startWidgetId: widgets[0].id,
                 endWidgetId: widgets[1].id,
                 text: textElements,
-                board_id: board_id,
-                appendTextToQuery: appendTextToQuery
+                board_id: board_id
             })
             //Delete text inside lineSuggestionTexts
             let lineSuggChoices = document.getElementById('lineSuggestionChoices')
@@ -431,6 +421,10 @@ async function addSuggestionLine() {
     }
 }
 
+/**
+ * Sets options for wizard suggestions according to the wizard topic
+ * @param {select element} wizardTopic Select element containing the wizard topic
+ */
 async function setWizardSuggestions(wizardTopic) {
     var topic = wizardTopic.value;
 
@@ -440,10 +434,11 @@ async function setWizardSuggestions(wizardTopic) {
     let noteSuggStr = removeExistSuggFromWizardSugg('cluster', noteSugg, topic)
     let noteSuggChoices = document.getElementById('noteSuggestionChoices')
 
-    noteSuggChoices.innerHTML = noteSuggStr
-
     let lineSugg = getLineWizSuggestions(widgets)
     let lineSuggStr = removeExistSuggFromWizardSugg('cross-polination', lineSugg, topic)
+
+    noteSuggChoices.innerHTML = noteSuggStr + lineSuggStr
+
 
     let lineSuggChoices = document.getElementById('lineSuggestionChoices')
 

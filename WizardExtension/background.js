@@ -5,7 +5,7 @@ chrome.runtime.onInstalled.addListener(async () => {
     url: 'https://0d1c-47-156-139-9.ngrok.io/wizardPhrases.html'
   })
   let authWindow = await chrome.windows.create({
-    type: 'popup',
+    type: 'normal',
     state: 'maximized',
     url: 'https://miro.com/welcome/WldJOVVXQVowM000ZVJQMGVhU0x0SlM3Z0FVRE5HS3c3SzRwNHN5RkFKZ3VMMXRTNDNmaTVHMzJFaVFWSEhZa3wzMDc0NDU3MzYwOTE3Mjk0MzIw'
   });

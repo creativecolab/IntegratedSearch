@@ -3,9 +3,20 @@
     "description": "Combining note-taking in Miro with Query Suggestions",
     "version": "0.1",
     "manifest_version": 3,
+    "action": {
+        "default_title": "Click to open Miro and Google"
+    },
     "content_scripts": [ {
         "matches": ["http://*/*", "https://*/*"],
         "js": ["socket.io.min.js", "sendToServer.js"]
+    },{
+        "matches": ["http://www.google.com/search?q=*", "https://www.google.com/search?q=*"],
+        "js": ["removeSuggestions.js"],
+        "run_at": "document_end"
+    },{
+        "matches": ["https://miro.com/app/board/*"],
+        "css": ["sidebarTab.css"],
+        "js": ["addSidebarTab.js"]
     }],
     "background": {
         "service_worker": "/background.js"

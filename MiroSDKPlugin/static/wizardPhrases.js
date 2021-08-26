@@ -8,7 +8,10 @@ socket.on('connect', ()=> {
 
 function connectToWizardRoom(){
     let room = 'wizard' + document.getElementById('boardId').value
-    socket.emit('connectToRoom', {board_id: room})
+    socket.emit('connectToRoom', {board_id: room}, function(response){
+        let connectionText = document.getElementById('connectionText')
+        connectionText.innerText=response
+    });
 }
 
 function changeQueryDiv(queryText){

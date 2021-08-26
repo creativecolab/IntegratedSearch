@@ -39,7 +39,7 @@ firebase_admin.initialize_app(cred, {
 
 ref = db.reference()
 
-client_id="3074457360917723621"
+client_id = "3074457360917723621"
 # users_ref = ref.child('users')
 # users_ref.set({
 #     'alanisawesome': {
@@ -226,10 +226,11 @@ def getNPmiro(boardWidgetsTexts):
 # WEB SOCKET
 @socketio.on('query')
 def scrape_search(json):
-    
+    print(json)
     room = 'wizard' + json['boardId']
     websitedom = scrape_website(json['url'])
     NPsuggestions = getNPSuggestions(websitedom)
+    print(NPsuggestions)
     npsuggestions = {'type': 'suggestions',
                      'url': json['url'],
                      'query': getQueryFromURL(json['url']),
@@ -247,6 +248,9 @@ def scrape_search(json):
                   'query': getQueryFromURL(json['url']),
                   'np': getNPSnippets(websitedom)}
     send(npsnippets, json=True, to=room)
+
+# Takes in url and scrapes its paragraph contents
+# then sends it to wizardin interface
 
 
 @socketio.on('url')
@@ -282,15 +286,24 @@ def wizard_widget_texts(json):
 
     widgetTypes = ['SHAPE', 'STICKER', 'TEXT']
     customWidgetTypes = ['Topic', 'Cluster', 'ClusterTitle']
-    filteredWidgets = [x for x in json['widgets'] if x['type'] in widgetTypes 
-        and (not x['metadata'] or x['metadata'][client_id]['type'] in customWidgetTypes)]
-    widgetTexts = list(map(lambda x: x['plainText'],filteredWidgets))
+    filteredWidgets = [x for x in json['widgets'] if x['type'] in widgetTypes
+                       and (not x['metadata'] or x['metadata'][client_id]['type'] in customWidgetTypes)]
+    widgetTexts = list(map(lambda x: x['plainText'], filteredWidgets))
     npmiro = {
         'type': 'miro',
         'np': getNPmiro(list(widgetTexts))
     }
     room = 'wizard' + json['boardId']
     send(npmiro, json=True, to=room)
+
+@socketio.on('viewportWidgets')
+def store_viewport_widgets(json):
+    viewport_history_ref = ref.child('viewport_history/' + json['boardId'])
+    time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+    viewport_history_ref.push().set({
+        "content": json['widgets'],
+        "timestamp": time,
+    })
 
 
 @socketio.on('wizardSuggestion')
@@ -332,6 +345,21 @@ def handle_wizard_suggestion(json):
             },
             "timestamp": time
         })
+    board_ref = ref.child('boards/' + json['board_id'])
+    board = board_ref.get()
+    print(board)
+    print('suggestion_cnt' in board)
+    if 'suggestion_cnt' in board:
+        print(board['suggestion_cnt'])
+        board_ref.update({
+            "suggestion_cnt": board['suggestion_cnt']+1
+        })
+        emit('updateCnt', {"type": "add", "suggestion_cnt": board['suggestion_cnt']+1}, to=json['board_id'])
+    else:
+        board_ref.update({
+            "suggestion_cnt": 1
+        })
+        emit('updateCnt', {"type": "add", "suggestion_cnt": 1}, to=json['board_id'])
     send(json, json=True, to=json['board_id'])
 
 
@@ -342,11 +370,58 @@ def handle_widgets(json):
 
 @socketio.on('connectToRoom')
 def connect_to_room(json):
-    print(json)
     room = json['board_id']
     join_room(room)
-    print('Joined room ' + room + '!')
-    send('Connected to room!', to=room)
+    print("Joined " + room)
+    if len(room)==12:
+        board_ref = ref.child('boards/' + json['board_id'])
+        return board_ref.get()
+    return 'Connected to room!'
+
+
+@socketio.on('suggestionClicked')
+def update_suggestion_count(json):
+    board_ref = ref.child('boards/' + json['board_id'])
+    board = board_ref.get()
+    board_ref.update({
+        "suggestion_cnt": board['suggestion_cnt']-1
+    })
+    print('updated suggestion cnt!')
+    emit('updateCnt', {
+        "type": json['type'], 
+        "suggestion_cnt": board['suggestion_cnt']-1,
+        "suggestion_id": json['suggestion_id']
+        }, to=json['board_id'])
+
+@socketio.on('popup')
+def send_popup_data(json):
+    popup_history_ref = ref.child('popup_history/' + json['boardId'])
+    try:
+        popup_history_ref.push().set({
+            'text': json['text'],
+            'type': json['type'],
+            'parentA': json['parentA'],
+            'parentB': json['parentB']
+        })
+    except KeyError:
+        popup_history_ref.push().set({
+            'text': json['text'],
+            'type': json['type'],
+            'parentA': json['parentA']
+        })
+
+
+
+@socketio.on('showSidebar')
+def change_sidebar(json):
+    print(json)
+    emit('showSidebar', json, to=json['boardId'])
+
+
+@socketio.on('hideSidebar')
+def change_sidebar(json):
+    print(json)
+    emit('hideSidebar', json, to=json['boardId'])
 
 
 # FLASK ROUTING
@@ -382,7 +457,7 @@ def test1():
     json = request.get_json()
     if request.method == 'POST':
         time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
-        board_ref.set({
+        board_ref.update({
             "studyType": json['studyType'],
             "topicTask": json['topicTask'],
             "lastUpdated": time
@@ -393,6 +468,7 @@ def test1():
     else:
         message = board_ref.get()
         return jsonify(message)  # serialize and use JSON headers
+
 
 if __name__ == '__main__':
     socketio.run(app)
