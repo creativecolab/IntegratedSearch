@@ -13,20 +13,19 @@ const wizardIds = ['3074457360917294320', '3074457360807760467']
 var USER_IS_WIZARD;
 
 miro.onReady(async () => {
-    topic_task = await getTaskTopic()
+
     userId = await miro.currentUser.getId()
     USER_IS_WIZARD = wizardIds.includes(userId)
-    let board = await miro.board.info.get()
-    board_id = board.id
-    var bar = document.getElementById('sidebar');
-    var list = document.getElementById('noteSuggestionsList');
     if (USER_IS_WIZARD) {
+        // let switches = document.getElementById('switchesDiv')
+        // switches.remove()
+        let list = document.getElementById('noteSuggestionsList');
         let switches = document.getElementById('switchesDiv')
 
-        let navigateToWizardPage = document.createElement('a')
-        navigateToWizardPage.href = '/wizardSidebar.html'
-        navigateToWizardPage.innerHTML = 'Navigate to wizarding interface.'
-        list.appendChild(navigateToWizardPage)
+        // let navigateToWizardPage = document.createElement('a')
+        // navigateToWizardPage.href = '/wizardSidebar.html'
+        // navigateToWizardPage.innerHTML = 'Navigate to wizarding interface.'
+        // list.appendChild(navigateToWizardPage)
 
         switches.appendChild(createNoteSwitch())
         let noteSwitchText = document.createElement('p')
@@ -39,42 +38,78 @@ miro.onReady(async () => {
         lineSwitchText.setAttribute('class', 'switchtext')
         lineSwitchText.innerHTML = 'Hide Line Suggestions'
         switches.appendChild(lineSwitchText)
-
     }
+    topic_task = await getTaskTopic()
+
+    let board = await miro.board.info.get()
+    board_id = board.id
+
+    updateSidebar()
+
     miro.addListener(miro.enums.event.WIDGETS_CREATED, addToSidebar)
     //miro.addListener(miro.enums.event.WIDGETS_DELETED, removeFromSidebar)
-    let widgets = await miro.board.widgets.get()
-    let metadataWidgets = widgets.filter((widget) => Object.keys(widget.metadata).length !== 0)
-    let dotWidgets = metadataWidgets.filter((widget) =>
-        widget.metadata[client_id].type === 'NoteSuggestion'
-    )
-    createList(dotWidgets.sort(compare))
-    let lineWidgets = metadataWidgets.filter((widget) =>
-        widget.metadata[client_id].type === 'LineSuggestion'
-    )
-    createList(lineWidgets.sort(compare))
-    let p = document.createElement('p')
-    if (lineWidgets.length + dotWidgets.length == 0) {
+
+    socket.emit('connectToRoom', { board_id: board_id })
+
+    // socket.on('updateCnt', (json) => {
+    //     console.log('test')
+    //     let listItem = document.getElementById(json.suggestion_id)
+    //     console.log(listItem)
+    //     if (listItem == null) return;
+    //     if (json.type == 'remove') {
+    //         listItem.remove()
+    //     } else if (json.type == 'subtract') {
+    //         listItem.children[1].style.backgroundColor = '#D3D3D3'
+    //     }
+    // })
+
+    socket.on('removeSuggestion', (json)=>{
+        let suggestionListItem = document.getElementById(json['sugg_DbId'])
+        suggestionListItem.remove()
+    })
+
+    socket.on('queriedSuggestion', (json)=>{
+        console.log(json)
+        let suggestionListItem = document.getElementById(json['sugg_DbId'])
+
+        let suggestionCard = suggestionListItem.children[1]
+        
+        suggestionCard.style.backgroundColor = '#D3D3D3'
+    })
+
+
+})
+
+async function updateSidebar() {
+
+    let response = await fetch('/suggestions?boardId=' + board_id)
+    let suggestions = await response.json()
+    let NoteSuggestions = [], LineSuggestions = []
+    for (const property in suggestions) {
+        if (suggestions[property].type == 'Line') {
+            LineSuggestions.push({ [property]: suggestions[property] })
+        } else if (suggestions[property].type == 'Note') {
+            NoteSuggestions.push({ [property]: suggestions[property] })
+        }
+    }
+    let noteList = document.getElementById('noteSuggestionsList')
+    let lineList = document.getElementById('lineSuggestionsList')
+    noteList.innerHTML = ''
+    lineList.innerHTML = ''
+    createList(NoteSuggestions.sort(compare))
+    createList(LineSuggestions.sort(compare))
+
+    let p = document.getElementById('listDesc')
+    if (NoteSuggestions.length + LineSuggestions.length == 0) {
         p.innerHTML = 'No search suggestions yet!'
+
     } else {
+        p.innerHTML = ''
         // p.innerHTML='Click the text in a card to navigate to its corresponding note.'
         // p.style.fontStyle='italic'
     }
-    p.setAttribute('class', 'textDesc')
-    bar.appendChild(p)
 
-
-    socket.on('updateCnt', (json) => {
-        console.log('test')
-        let listItem = document.getElementById(json.suggestion_id)
-        if (listItem == null) return;
-        if (json.type == 'remove') {
-            listItem.remove()
-        } else if (json.type == 'subtract') {
-            listItem.children[1].style.backgroundColor = '#D3D3D3'
-        }
-    })
-})
+}
 
 async function getTaskTopic() {
     let taskWidget = await miro.board.widgets.get({ metadata: { [client_id]: { type: 'Topic' } } })
@@ -108,28 +143,34 @@ function createLineSwitch() {
     return lineSwitch
 }
 
+/**
+ * 
+ * @param {*} event 
+ * @returns 
+ */
 async function addToSidebar(event) {
-    let p = document.getElementsByClassName('textDesc')
-    if (p.length != 0) {
-        p[0].remove()
-    }
-    if (event.data.length == 1) {
-        if (Object.keys(event.data[0]) == 0) {
-            return
-        } else if (cardType.includes(event.data[0].metadata[client_id].type)) {
-            let widget = await miro.board.widgets.get({ id: event.data[0].id })
-            console.log(widget)
-            addToList(widget[0])
-        }
-    } else {
-        if (Object.keys(event.data[1]) == 0) {
-            return
-        } else if (cardType.includes(event.data[1].metadata[client_id].type)) {
-            let widget = await miro.board.widgets.get({ id: event.data[1].id })
-            console.log(widget)
-            addToList(widget[0])
-        }
-    }
+    updateSidebar()
+    // let p = document.getElementsByClassName('textDesc')
+    // if (p.length != 0) {
+    //     p[0].remove()
+    // }
+    // if (event.data.length == 1) {
+    //     if (Object.keys(event.data[0]) == 0) {
+    //         return
+    //     } else if (cardType.includes(event.data[0].metadata[client_id].type)) {
+    //         let widget = await miro.board.widgets.get({ id: event.data[0].id })
+    //         console.log(widget)
+    //         addToList(widget[0])
+    //     }
+    // } else {
+    //     if (Object.keys(event.data[1]) == 0) {
+    //         return
+    //     } else if (cardType.includes(event.data[1].metadata[client_id].type)) {
+    //         let widget = await miro.board.widgets.get({ id: event.data[1].id })
+    //         console.log(widget)
+    //         addToList(widget[0])
+    //     }
+    // }
 }
 
 async function removeFromSidebar(event) {
@@ -142,10 +183,10 @@ async function removeFromSidebar(event) {
 }
 
 function compare(a, b) {
-    if (a.id < b.id) {
+    if (a[Object.keys(a)[0]].time_created < b[Object.keys(b)[0]].time_created) {
         return -1;
     }
-    if (a.id > b.id) {
+    if (a[Object.keys(a)[0]].time_created < b[Object.keys(b)[0]].time_created) {
         return 1;
     }
     return 0;
@@ -183,8 +224,12 @@ function changeLineSuggestionVisibility() {
     }
 }
 
-function createList(widgets) {
-    widgets.forEach((widget) => addToList(widget))
+/**
+ * 
+ * @param {Object[]} suggestions array of suggestions in JSON form, with database ID as key and attributes dict as value
+ */
+function createList(suggestions) {
+    suggestions.forEach((suggestion) => addToList(suggestion))
 }
 
 function printEventData(event) {
@@ -207,26 +252,26 @@ function addMouseoutEvent() {
     }, false);
 }
 
+/**
+ * 
+ * @param {Object} suggestion suggestion object, 
+ */
+function addToList(suggestion) {
+    console.log(suggestion)
+    let sugg_Id = Object.keys(suggestion)[0]
+    var listItem = createlistItemElement(suggestion[sugg_Id])
+    var icon = createIconElement(suggestion[sugg_Id].type)
+    var card = createCardElement(suggestion[sugg_Id]);
 
-function addToList(widget) {
-    var listItem = createlistItemElement(widget)
-    var icon = createIconElement(widget.metadata[client_id].type)
-    var card;
-    console.log(widget.style.backgroundColor)
-    if (widget.style.backgroundColor == '#ecffdc') {
-
-        card = createCardElement(widget.metadata[client_id].text, widget.metadata[client_id].type, true)
-    } else {
-
-        card = createCardElement(widget.metadata[client_id].text, widget.metadata[client_id].type, false)
-    }
     var list;
-    if (widget.metadata[client_id].type == 'LineSuggestion') {
+    if (suggestion[sugg_Id].type == 'Line') {
         list = document.getElementById('lineSuggestionsList')
-    } else if (widget.metadata[client_id].type == 'NoteSuggestion') {
+    } else if (suggestion[sugg_Id].type == 'Note') {
         list = document.getElementById('noteSuggestionsList')
+    } else {
+        console.log(suggestion[sugg_Id].type)
     }
-    listItem.setAttribute('id', widget.id)
+    listItem.setAttribute('id', sugg_Id)
     list.appendChild(listItem);
     listItem.appendChild(icon)
     listItem.appendChild(card)
@@ -238,17 +283,22 @@ function removeFromList(widgetId) {
     card.remove()
 }
 
-function createlistItemElement(widget) {
+/**
+ * 
+ * @param {*} suggestion Suggestion JSON object
+ * @returns 
+ */
+function createlistItemElement(suggestion) {
     let listItem = document.createElement('li');
 
-    if (widget.metadata[client_id].type === 'NoteSuggestion') {
+    if (suggestion.type === 'Note') {
         listItem.setAttribute('class', 'circleItem')
         if (circleCardVisible) {
             listItem.style.display = 'block'
         } else {
             listItem.style.display = 'none'
         }
-    } else if (widget.metadata[client_id].type === 'LineSuggestion') {
+    } else if (suggestion.type === 'Line') {
         listItem.setAttribute('class', 'lineItem')
         if (lineCardVisible) {
             listItem.style.display = 'block'
@@ -263,12 +313,12 @@ function createIconElement(widgetType) {
     let icon = document.createElement('div')
 
     icon.setAttribute('class', 'iconDiv')
-    if (widgetType === 'NoteSuggestion') {
+    if (widgetType === 'Note') {
         let text = document.createElement('p')
         text.setAttribute('class', 'iconDot')
         text.innerHTML = '&#x2022'
         icon.appendChild(text)
-    } else if (widgetType === 'LineSuggestion') {
+    } else if (widgetType === 'Line') {
         let text = document.createElement('p')
         text.setAttribute('class', 'iconLine')
         text.innerHTML = '&#9135'
@@ -279,26 +329,23 @@ function createIconElement(widgetType) {
 
 /**
  * 
- * @param {String} widgetText Query suggestion text to be included in the card
- * @param {String} widgetType Type of Suggestion widget
- * @param {boolean} hasBeenClicked Whether query has been issued already or not
+ * @param {Object} suggestion suggestion JSON object
  * @returns 
  */
-function createCardElement(widgetText, widgetType, hasBeenClicked) {
+function createCardElement(suggestion) {
     let card = document.createElement('div')
     card.setAttribute('class', 'card')
     let textDiv = document.createElement('div')
     textDiv.setAttribute('class', 'textDiv')
-    widgetText.forEach((widget) => {
-        let query = document.createElement('div')
-        query.setAttribute('class', 'queryRow')
-        let queryBtn = createSearchElement()
-        let text = createTextElement(widget)
-        query.appendChild(queryBtn)
-        query.appendChild(text)
-        textDiv.appendChild(query)
-    })
-    if (hasBeenClicked) {
+    let query = document.createElement('div')
+    query.setAttribute('class', 'queryRow')
+    let queryBtn = createSearchElement()
+    let text = createTextElement(suggestion.text)
+    query.appendChild(queryBtn)
+    query.appendChild(text)
+    textDiv.appendChild(query)
+
+    if (suggestion.status == '4') {
         card.style.backgroundColor = '#D3D3D3'
     }
     cardRect = card.getBoundingClientRect()
@@ -320,6 +367,7 @@ function createButtonDiv(widgetType) {
     return div
 }
 
+/**DEPRECATED */
 function createAcceptElement() {
     let accept = document.createElement('button')
     accept.setAttribute('class', 'accept')
@@ -367,23 +415,26 @@ function createSearchElement() {
      */
     search.addEventListener('click', async function (e) {
         let cardText = this.parentNode.childNodes[1].innerHTML
-        let suggestionid = this.parentNode.parentNode.parentNode.parentNode.getAttribute('id')
-        let suggestion = await miro.board.widgets.get({ id: suggestionid })
-        let widget = await miro.board.widgets.get({ id: suggestion[0].metadata[client_id].parentId })
+        let sugg_Id = this.parentNode.parentNode.parentNode.parentNode.getAttribute('id')
+        let response = await fetch('/suggestions?boardId=' + board_id + '&sugg_id=' + sugg_Id)
+        let suggestion = await response.json()
         let widgetText, widgetA, widgetB, widgetAtype, widgetBtype, widgetType, appendTextToQuery;
-        if (widget[0].type == 'LINE') {
-            widgetA = await miro.board.widgets.get({ id: widget[0].startWidgetId })
-            widgetB = await miro.board.widgets.get({ id: widget[0].endWidgetId })
+        console.log(suggestion)
+        if (suggestion.type == 'Line') {
+            widgetA = await miro.board.widgets.get({ id: suggestion.parentA_Id })
+            widgetB = await miro.board.widgets.get({ id: suggestion.parentB_Id })
             widgetAtype = Object.keys(widgetA[0].metadata).length !== 0 ? widgetA[0].metadata[client_id].type : widgetA[0].type
             widgetBtype = Object.keys(widgetB[0].metadata).length !== 0 ? widgetB[0].metadata[client_id].type : widgetB[0].type
             appendTextToQuery = (widgetAtype == 'ClusterTitle' && widgetBtype == 'ClusterTitle')
             widgetText = appendTextToQuery ? widgetA[0].plainText + ' ' + widgetB[0].plainText : null
-        } else {
+        } else if (suggestion.type == 'Note') {
+            let widget = await miro.board.widgets.get({ id: suggestion.parent_Id })
             widgetType = Object.keys(widget[0].metadata).length !== 0 ? widget[0].metadata[client_id].type : widget[0].type
             appendTextToQuery = widgetType == 'ClusterTitle' || (Object.keys(widget[0].metadata).length == 0 && widget[0].plainText.length < 50)
             widgetText = appendTextToQuery ? widget[0].plainText : null
         }
         let text;
+        console.log(widgetText)
         if (widgetText != null) {
             text = cardText + " " + widgetText;
         } else if (topic_task == '') {
@@ -400,21 +451,32 @@ function createSearchElement() {
         window.open(url, '_blank').focus()
         if ('rgb(211, 211, 211)' != this.parentNode.parentNode.parentNode.style.backgroundColor && !USER_IS_WIZARD) {
             this.parentNode.parentNode.parentNode.style.backgroundColor = '#D3D3D3'
-            socket.emit('suggestionClicked', {
+            // fetch('/suggestions', {
+
+            //     // Declare what type of data we're sending
+            //     headers: {
+            //         'Content-Type': 'application/json'
+            //     },
+
+            //     // Specify the method
+            //     method: 'POST',
+
+            //     // A JSON payload
+            //     body: JSON.stringify({
+            //         "board_id": board_id,
+            //         "status": 4,
+            //         "sugg_DbId": sugg_Id
+            //     })
+            // }).then((response) => {
+            //     return response.text()
+            // }).then(text => {
+            // });
+            socket.emit('queriedSuggestion', {
                 board_id: board_id,
-                type: 'subtract',
-                suggestion_id: suggestionid
-            })
-            await miro.board.widgets.update({
-                id: suggestionid, style: {
-                    backgroundColor: '#ECFFDC',
-                    borderOpacity: 1,
-                    fontSize: 20,
-                    shapeType: miro.enums.shapeType.CIRCLE,
-                }, text: '🔎︎'
+                sugg_DbId: sugg_Id
             })
         }
-       
+
     })
     return search
 }
@@ -430,49 +492,138 @@ function createRejectElement() {
         this.style.backgroundColor = 'transparent'
     })
     reject.addEventListener('click', async function (e) {
-        let widgetid = this.parentNode.parentNode.getAttribute('id')
-        let widget = await miro.board.widgets.get({ id: widgetid })
-        if (widget[0].metadata[client_id].type == 'LineSuggestion') {
-            await miro.board.widgets.deleteById(widget[0].metadata[client_id].parentId)
-        }
-        if ('rgb(211, 211, 211)' != this.parentNode.style.backgroundColor) {
-            socket.emit('suggestionClicked', {
+        let sugg_DbId = this.parentNode.parentNode.getAttribute('id')
+
+        let response = await fetch('/suggestions?boardId=' + board_id + '&sugg_id=' + sugg_DbId)
+        let suggestion = await response.json()
+
+        if(suggestion.type == 'Line'){
+            socket.emit('removeSuggestion', {
+                type: 'Line',
                 board_id: board_id,
-                type: 'remove',
-                suggestion_id: widgetid
+                "sugg_DbId": sugg_DbId,
+                parentA_Id: suggestion.parentA_Id,
+                parentB_Id: suggestion.parentB_Id
+            })
+        }else if(suggestion.type == 'Note'){
+            socket.emit('removeSuggestion', {
+                type: 'Note',
+                board_id: board_id,
+                "sugg_DbId": sugg_DbId,
+                parent_Id: suggestion.parent_Id,
+                parentType: suggestion.parent_type
             })
         }
-        await miro.board.widgets.deleteById(widgetid)
+        // fetch('/suggestions', {
 
-        let suggestion = document.getElementById(widgetid)
-        suggestion.remove()
+        //     // Declare what type of data we're sending
+        //     headers: {
+        //         'Content-Type': 'application/json'
+        //     },
 
+        //     // Specify the method
+        //     method: 'POST',
+
+        //     // A JSON payload
+        //     body: JSON.stringify({
+        //         "board_id": board_id,
+        //         "status": 5,
+        //         "sugg_DbId": sugg_DbId
+        //     })
+        // }).then((response) => {
+        //     return response.text()
+        // }).then(text => {
+        //     if (text != 'Success') {
+        //         miro.showNotification('Suggestion failed to delete')
+        //     } else {
+        //         miro.showNotification('Suggestion deleted!')
+        //     }
+        // });
+        let suggestionCard = document.getElementById(sugg_DbId)
+        suggestionCard.remove()
+
+        //Test if note/line has other suggestions. If not, then remove suggestion circle
+        // console.log(suggestion)
+        // let suggResponse
+        // if (suggestion.type == 'Line') {
+        //     suggResponse = await fetch('/suggestions?boardId=' + board_id + '&parent_id=' + suggestion.parentA_Id + '_' + suggestion.parentB_Id)
+        // } else if (suggestion.type == 'Note') {
+        //     suggResponse = await fetch('/suggestions?boardId=' + board_id + '&parent_id=' + suggestion.parent_Id)
+        // }
+        // let suggSuggestions = await suggResponse.json()
+        // console.log(suggSuggestions)
+        
+        // if (suggSuggestions == null) {
+        //     if (suggestion.type == 'Line') {
+        //         let suggLine = await miro.board.widgets.get({startWidgetId: suggestion.parentA_Id, endWidgetId: suggestion.parentB_Id} ||
+        //         {startWidgetId: suggestion.parentB_Id, endWidgetId: suggestion.parentA_Id})
+        //         let suggLine_Id = suggLine[0].id
+        //         let suggCircle = await miro.board.widgets.get({metadata: {
+        //             [client_id] :{
+        //                 type: 'LineSuggestion',
+        //                 parentId: suggLine_Id,
+        //                 parentType: 'LINE'
+        //             }
+        //         }})
+        //         await miro.board.widgets.deleteById(suggestion.suggLine_Id)
+        //     } else if (suggestion.type=='Note'){
+        //         let suggCircle = await miro.board.widgets.get({metadata: {
+        //             [client_id] :{
+        //                 type: 'NoteSuggestion',
+        //                 parentId: suggestion.parent_Id,
+        //                 parentType: suggestion.parentType
+        //             }
+        //         }})
+        //         await miro.board.widgets.deleteById(suggCircle[0].id)
+        //     }
+        // }
+
+
+
+
+        // socket.emit('suggestionClicked', {
+        //     board_id: board_id,
+        //     type: 'remove',
+        //     suggestion_id: widgetid
+        // })
+
+
+        //await removePopups()
 
     })
     return reject
 
 }
 
-function createTextElement(widgetText) {
+function createTextElement(suggestionText) {
     let text = document.createElement('p')
     text.setAttribute('class', 'text')
-    text.innerHTML = widgetText;
+    text.innerHTML = suggestionText;
 
-    if (USER_IS_WIZARD) {
-        text.addEventListener('mouseover', function (e) {
-            this.style.backgroundColor = '#A9A9A9'
-        })
-        text.addEventListener('mouseout', function (e) {
-            this.style.backgroundColor = 'transparent'
-        })
-        text.addEventListener('click', async function (e) {
-            let widgetid = this.parentNode.parentNode.parentNode.parentNode.getAttribute('id')
-            let widget = await miro.board.widgets.get({ id: widgetid })
-            miro.board.viewport.zoomToObject(widget[0].metadata[client_id].parentId)
-        })
-    }
+    //TODO: For when user is allowed to see both on board and sidebar
+    // if (USER_IS_WIZARD) {
+    //     text.addEventListener('mouseover', function (e) {
+    //         this.style.backgroundColor = '#A9A9A9'
+    //     })
+    //     text.addEventListener('mouseout', function (e) {
+    //         this.style.backgroundColor = 'transparent'
+    //     })
+    //     text.addEventListener('click', async function (e) {
+    //         let widgetid = this.parentNode.parentNode.parentNode.parentNode.getAttribute('id')
+    //         let widget = await miro.board.widgets.get({ id: widgetid })
+    //         miro.board.viewport.zoomToObject(widget[0].metadata[client_id].parentId)
+    //     })
+    // }
 
 
     return text
 }
 
+async function removePopups() {
+    let selectedWidgets = await miro.board.widgets.get()
+    let widgets = selectedWidgets.filter((widget) => Object.keys(widget.metadata).length !== 0)
+    widgets = widgets.filter((widget) => (widget.metadata[client_id].type == 'Popup')
+        || (widget.metadata[client_id].type == 'Accept')
+        || (widget.metadata[client_id].type == 'Reject'))
+    await miro.board.widgets.deleteById(widgets)
+}

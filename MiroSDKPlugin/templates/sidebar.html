@@ -216,9 +216,12 @@
 
   </style>
   <script src="https://miro.com/app/static/sdk.1.1.js"></script>
+  
 </head>
 
 <body>
+  
+  <script src="{{url_for('static', filename='sidebar.js')}}"></script>
   <div class="scrollable-container">
     <div class="scrollable-content" id='sidebar'>
       <h3 style="margin-left: 10px">Suggestions List</h3>
@@ -233,15 +236,17 @@
           <input type="checkbox" onclick="changeLineSuggestionVisibility()">
           <span class="slider round"></span>
         </label>
-        <p class="switchtext">Hide Line Suggestions</p> -->
+        <p class="switchtext">Hide Line Suggestions</p>
+        <br>
+        <a href="/wizardSidebar.html">Navigate to wizarding interface.</a> -->
       </div>
       <ul class='list' id="noteSuggestionsList">
       </ul>
       <ul class='list' id="lineSuggestionsList">
       </ul>
+      <p class='textDesc' id='listDesc'></p>
     </div>
   </div>
-  <script src="{{url_for('static', filename='sidebar.js')}}"></script>
 </body>
 
 </html>

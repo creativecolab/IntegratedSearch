@@ -3,6 +3,61 @@ const wizardIds = ['3074457360917294320', '3074457360807760467']//first is devel
 var socket = io();
 var board_id;
 var user_id;
+var wizard_topic;
+const WIZARD_TOPICS = {
+    COVID_19: "COVID-19",
+    SPACE_TRAVEL: "Space Travel",
+    NONE: "None"
+}
+
+
+const lineSuggPreChoices_COVID19 = [
+    'Ecotourism',
+    'National Parks Service',
+    'Road Traffic',
+    'NO2 and biomass',
+    'Deforestation',
+    'Carbon emissions of the rich',
+    'Environmental racism',
+    'Carbon inequality',
+    'Decreased transport',
+    'Greenhouse gas levels',
+    'Waste collection',
+    'Recycling Programs',
+    'Waste management policies',
+    'Essential waste workers',
+    'Cold chain',
+    'Pharmeceutical transport',
+    'Food transport',
+    'Blockchain',
+    'Post-covid Green Recovery',
+    'Ecological restoration',
+    'Sustainable development goals',
+    'CFC-free coldchain equipment',
+    'Indigenous forest gardens',
+    'Mass timber',
+    'Global Footprint Network',
+    'Regulations',
+    'Business Act On Climate Pledge',
+    'Paris Agreement']
+    
+
+const lineSuggPreChoices_SpaceTravel = ['International space alliance',
+'Commtttee on the Peaceful Uses of Outer Space',
+'Outer Space Treaty',
+'The Wolf Amendment',
+'International Lunar Research Station',
+'Climate Change',
+'Climate Change rocket emissions',
+'Climate Change sea ice loss',
+'Climate Change ozone layer depletion',
+'Climate Change temperature increases',
+'International space agencies with commercial purposes',
+'International Telecommunications Union',
+'International Telecommunications Satellite Consortium', 
+'International Maritime Satellite Organization', 
+'Space exploration lost political support',
+"NASA's budget peaked during Apollo program"]
 
 const noteSuggPreChoices_COVID19 = ['Organic and inorganic pollutants',
 'Soap discharge',
@@ -40,37 +95,7 @@ const noteSuggPreChoices_COVID19 = ['Organic and inorganic pollutants',
 'Bike sales',
 'E-commerce',
 'Municipal solid waste',
-'Biomedical waste']
-
-const lineSuggPreChoices_COVID19 = [
-'Ecotourism',
-'National Parks Service',
-'Road Traffic',
-'NO2 and biomass',
-'Deforestation',
-'Carbon emissions of the rich',
-'Environmental racism',
-'Carbon inequality',
-'Decreased transport',
-'Greenhouse gas levels',
-'Waste collection',
-'Recycling Programs',
-'Waste management policies',
-'Essential waste workers',
-'Cold chain',
-'Pharmeceutical transport',
-'Food transport',
-'Blockchain',
-'Post-covid Green Recovery',
-'Ecological restoration',
-'Sustainable development goals',
-'CFC-free coldchain equipment',
-'Indigenous forest gardens',
-'Mass timber',
-'Global Footprint Network',
-'Regulations',
-'Business Act On Climate Pledge',
-'Paris Agreement']
+'Biomedical waste'].concat(lineSuggPreChoices_COVID19)
 
 const noteSuggPreChoices_SpaceTravel = ['Nazi Germany',
 'Cold War',
@@ -131,24 +156,9 @@ const noteSuggPreChoices_SpaceTravel = ['Nazi Germany',
 'FAA Recommended Practices',
 'National Environmental Policy and Clean Air',
 'Class II Airman Medical Certification',
-'U.S. Commercial Space Launch Competitiveness Act']
+'U.S. Commercial Space Launch Competitiveness Act'].concat(lineSuggPreChoices_SpaceTravel)
 
-const lineSuggPreChoices_SpaceTravel = ['International space alliance',
-'Commtttee on the Peaceful Uses of Outer Space',
-'Outer Space Treaty',
-'The Wolf Amendment',
-'International Lunar Research Station',
-'Climate Change',
-'Climate Change rocket emissions',
-'Climate Change sea ice loss',
-'Climate Change ozone layer depletion',
-'Climate Change temperature increases',
-'International space agencies with commercial purposes',
-'International Telecommunications Union',
-'International Telecommunications Satellite Consortium', 
-'International Maritime Satellite Organization', 
-'Space exploration lost political support',
-"NASA's budget peaked during Apollo program"]
+
 
 
 miro.onReady(async () => {
@@ -209,35 +219,15 @@ function setStudyDesign(){
     });
 }
 
-function insertWizardLineSuggestions(queryText, parentIdA, parentIdB){
-    database.ref('wizard_suggestions/' + board_id).set({
-        text: queryText,
-        type: 'Line',
-        parentIdA: parentIdA,
-        parentIdB: parentIdB,
-        timestamp: Date()
-    });
-}
-
-function insertWizardNoteSuggestions(queryText, type, parentId){
-    database.ref('wizard_suggestions/' + board_id).set({
-        text: queryText,
-        type: 'Note',
-        parentIdA: parentId,
-        parentIdB: null,
-        timestamp: Date()
-    });
-}
-
-function removeExistSuggFromWizardSugg(listType, existSuggList, wizardTopic) {
+function removeExistSuggFromWizardSugg(listType, existSuggList) {
     let noteSuggPreChoices;
     let noteSuggStr = ''
     let lineSuggStr = ''
 
-    if (wizardTopic == 'COVID-19') {
+    if (wizard_topic == 'COVID-19') {
         noteSuggPreChoices = noteSuggPreChoices_COVID19;
         lineSuggPreChoices = lineSuggPreChoices_COVID19
-    } else if (wizardTopic == 'Space Travel') {
+    } else if (wizard_topic == 'Space Travel') {
         noteSuggPreChoices = noteSuggPreChoices_SpaceTravel;
         lineSuggPreChoices = lineSuggPreChoices_SpaceTravel;
     }
@@ -287,6 +277,65 @@ function getLineWizSuggestions(widgets) {
     return lineSugg
 }
 
+/**
+ * Sets options for wizard suggestions according to the wizard topic
+ * @param {select element} wizardTopic Select element containing the wizard topic
+ */
+ async function setWizardSuggestions(wizardTopic) {
+    wizard_topic = wizardTopic.value;
+
+    //let widgets = await miro.board.widgets.get()
+    let response = await fetch('/suggestions?boardId=' + board_id)
+    let activeSuggestions = await response.json()
+    cleanWizardLists(activeSuggestions)
+    
+
+    let noteSuggChoices = document.getElementById('noteSuggestionChoices')
+    let lineSuggChoices = document.getElementById('lineSuggestionChoices')
+    let lineSuggStr='', noteSuggStr='';
+
+    if(wizard_topic==WIZARD_TOPICS.COVID_19){
+        noteSuggPreChoices_COVID19.forEach(sugg => {
+            noteSuggStr += '<option value="' + sugg + '"/>'
+        })
+        lineSuggPreChoices_COVID19.forEach(sugg => {
+            lineSuggStr += '<option value="' + sugg + '"/>'
+        })
+    
+    }else if (wizard_topic==WIZARD_TOPICS.SPACE_TRAVEL){
+        noteSuggPreChoices_SpaceTravel.forEach(sugg => {
+            noteSuggStr += '<option value="' + sugg + '"/>'
+        })
+        lineSuggPreChoices_SpaceTravel.forEach(sugg => {
+            lineSuggStr += '<option value="' + sugg + '"/>'
+        })
+    }
+
+    noteSuggChoices.innerHTML = noteSuggStr
+    lineSuggChoices.innerHTML = lineSuggStr
+
+
+}
+
+function cleanWizardLists(querySuggestions){
+    
+    for (const property in querySuggestions) {
+        if (querySuggestions[property].type=='Note'){
+            if(wizard_topic==WIZARD_TOPICS.COVID_19){
+                noteSuggPreChoices_COVID19.splice(noteSuggPreChoices_COVID19.indexOf(querySuggestions[property].text), 1)
+            }else if (wizard_topic==WIZARD_TOPICS.SPACE_TRAVEL){
+                noteSuggPreChoices_SpaceTravel.splice(noteSuggPreChoices_SpaceTravel.indexOf(querySuggestions[property].text), 1)
+            }
+        }else if (querySuggestions[property].type=='Line'){
+            if(wizard_topic==WIZARD_TOPICS.COVID_19){
+                lineSuggPreChoices_COVID19.splice(lineSuggPreChoices_COVID19.indexOf(querySuggestions[property].text), 1)
+            }else if (wizard_topic==WIZARD_TOPICS.SPACE_TRAVEL){
+                lineSuggPreChoices_SpaceTravel.splice(lineSuggPreChoices_SpaceTravel.indexOf(querySuggestions[property].text), 1)
+            }
+        }
+    }
+}
+
 async function addSuggestionCircle() {
     let widgets = await miro.board.selection.get({ metadata: {} } || {
         metadata: {
@@ -328,7 +377,7 @@ async function addSuggestionCircle() {
             let parentType = Object.keys(widgets[0].metadata).length!==0 ? widgets[0].metadata[client_id].type : widgets[0].type
             // let appendTextToQuery = parentType=='ClusterTitle' || (Object.keys(widgets[0].metadata).length==0 && widgets[0].plainText.length < 50)
 
-            socket.emit('wizardSuggestion', {
+            socket.emit('addSuggestion', {
                 type: 'addSuggestionCircle',
                 parentText: widgets[0].plainText,
                 parentType: parentType,
@@ -392,11 +441,14 @@ async function addSuggestionLine() {
             textElements[i++] = textElement3.value.trim()
         }
         if (textElements.length != 0) {
+            if(widgets[1].id<widgets[0].id){
+                widgets=[widgets[1], widgets[0]]
+            }
             let parentAType = Object.keys(widgets[0].metadata).length!==0 ? widgets[0].metadata[client_id].type : widgets[0].type
             let parentBType = Object.keys(widgets[1].metadata).length!==0 ? widgets[1].metadata[client_id].type : widgets[1].type
             // let appendTextToQuery= (parentAType=='ClusterTitle' && parentBType=='ClusterTitle')
             //console.log(parentText)
-            socket.emit('wizardSuggestion', {
+            socket.emit('addSuggestion', {
                 type: 'addSuggestionLine',
                 parentAText: widgets[0].plainText,
                 parentBText: widgets[1].plainText,
@@ -421,28 +473,3 @@ async function addSuggestionLine() {
     }
 }
 
-/**
- * Sets options for wizard suggestions according to the wizard topic
- * @param {select element} wizardTopic Select element containing the wizard topic
- */
-async function setWizardSuggestions(wizardTopic) {
-    var topic = wizardTopic.value;
-
-    let widgets = await miro.board.widgets.get()
-    let noteSugg = getNoteWizSuggestions(widgets)
-
-    let noteSuggStr = removeExistSuggFromWizardSugg('cluster', noteSugg, topic)
-    let noteSuggChoices = document.getElementById('noteSuggestionChoices')
-
-    let lineSugg = getLineWizSuggestions(widgets)
-    let lineSuggStr = removeExistSuggFromWizardSugg('cross-polination', lineSugg, topic)
-
-    noteSuggChoices.innerHTML = noteSuggStr + lineSuggStr
-
-
-    let lineSuggChoices = document.getElementById('lineSuggestionChoices')
-
-    lineSuggChoices.innerHTML = lineSuggStr
-
-
-}

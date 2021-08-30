@@ -40,18 +40,6 @@ firebase_admin.initialize_app(cred, {
 ref = db.reference()
 
 client_id = "3074457360917723621"
-# users_ref = ref.child('users')
-# users_ref.set({
-#     'alanisawesome': {
-#         'date_of_birth': 'June 23, 1912',
-#         'full_name': 'Alan Turing'
-#     },
-#     'gracehop': {
-#         'date_of_birth': 'December 9, 1906',
-#         'full_name': 'Grace Hopper'
-#     }
-# })
-
 # NLP
 
 
@@ -226,27 +214,28 @@ def getNPmiro(boardWidgetsTexts):
 # WEB SOCKET
 @socketio.on('query')
 def scrape_search(json):
-    print(json)
     room = 'wizard' + json['boardId']
     websitedom = scrape_website(json['url'])
     NPsuggestions = getNPSuggestions(websitedom)
-    print(NPsuggestions)
     npsuggestions = {'type': 'suggestions',
                      'url': json['url'],
                      'query': getQueryFromURL(json['url']),
                      'np': NPsuggestions}
     browser_history_ref = ref.child('browser_history/' + json['boardId'])
     time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
-    browser_history_ref.push().set({
-        "url": json['url'],
-        "timestamp": time,
-        "suggestions": NPsuggestions
-    })
+
+    NPsnippets = getNPSnippets(websitedom)
     send(npsuggestions, json=True, to=room)
     npsnippets = {'type': 'snippets',
                   'url': json['url'],
                   'query': getQueryFromURL(json['url']),
-                  'np': getNPSnippets(websitedom)}
+                  'np': NPsnippets}
+    browser_history_ref.push().set({
+        "url": json['url'],
+        "timestamp": time,
+        "suggestions": NPsuggestions,
+        "snippets": NPsnippets
+    })
     send(npsnippets, json=True, to=room)
 
 # Takes in url and scrapes its paragraph contents
@@ -255,21 +244,22 @@ def scrape_search(json):
 
 @socketio.on('url')
 def scrape_url(json):
-    print(json)
-
     browser_history_ref = ref.child('browser_history/' + json['boardId'])
     time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+    websitedom = scrape_website(json['url'])
+    NParticle = getNParticle(websitedom)
+    #to clear data
+    #browser_history_ref.delete()
 
     browser_history_ref.push().set({
         "url": json['url'],
         "timestamp": time,
+        "article": NParticle
     })
-    websitedom = scrape_website(json['url'])
     nparticle = {
         'type': 'articles',
         'url': json['url'],
-        'np': getNParticle(websitedom)}
-    print(nparticle)
+        'np': NParticle}
     room = 'wizard' + json['boardId']
     send(nparticle, json=True, to=room)
 
@@ -278,6 +268,8 @@ def scrape_url(json):
 def wizard_widget_texts(json):
     board_history_ref = ref.child('board_history/' + json['boardId'])
     time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+    # To clear data for board
+    #board_history_ref.delete()
 
     board_history_ref.push().set({
         "content": json['widgets'],
@@ -296,76 +288,135 @@ def wizard_widget_texts(json):
     room = 'wizard' + json['boardId']
     send(npmiro, json=True, to=room)
 
+
 @socketio.on('viewportWidgets')
 def store_viewport_widgets(json):
     viewport_history_ref = ref.child('viewport_history/' + json['boardId'])
     time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+
+    #To clear data
+    #viewport_history_ref.delete()
+
     viewport_history_ref.push().set({
         "content": json['widgets'],
         "timestamp": time,
     })
 
 
-@socketio.on('wizardSuggestion')
-def handle_wizard_suggestion(json):
-    suggType, parentIdA, parentIdB = None, None, None
-    wizard_suggestions_ref = ref.child(
-        'wizard_suggestions/' + json['board_id'])
+@socketio.on('addSuggestion')
+def add_suggestion(json):
+    suggestions_ref = ref.child(
+        'suggestions/' + json['board_id'])
+    widgets_with_suggestions_ref = ref.child(
+        'widgets_with_suggestions/' + json['board_id'])
+    #suggestionKeys = []
     if json['type'] == 'addSuggestionLine':
         suggType = 'Line'
         parentIdA = json['startWidgetId']
         parentIdB = json['endWidgetId']
+        currSuggestions = widgets_with_suggestions_ref.child(
+            parentIdA+'_' + parentIdB).get()
+
         time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
-        wizard_suggestions_ref.push().set({
-            "text": json['text'],
-            "type": suggType,
-            "parentA": {
-                "parentId": parentIdA,
-                "type": json['parentAType'],
-                "text": json['parentAText']
-            },
-            "parentB": {
-                "parentId": parentIdB,
-                "type": json['parentBType'],
-                "text": json['parentBText']
-            },
-            "timestamp": time
-        })
+        for text in json['text']:
+            suggestionKey = suggestions_ref.push().key
+            suggestions_ref.child(suggestionKey).set({
+                "text": text,
+                "type": suggType,
+                "parentA_Id": parentIdA,
+                "parentA_type": json['parentAType'],
+                "parentA_text": json['parentAText'],
+                "parentB_Id": parentIdB,
+                "parentB_type": json['parentBType'],
+                "parentB_text": json['parentBText'],
+                "status": 1,  # Status measures: 1 for not clicked, 2 for opened sidebar, 3 for opened card suggestions on board, 4 for queried, 5 for deleted
+                "time_created": time
+            })
+
+            widgets_with_suggestions_ref.child(
+                parentIdA+'_' + parentIdB + '/' +suggestionKey ).set({'status': 1})
+        if not bool(currSuggestions):
+            emit("addWidget", json, to=json['board_id'], include_self=False)
+
     else:
         suggType = 'Note'
-        parentIdA = json['parentId']
+        parentId = json['parentId']
+        currSuggestions = widgets_with_suggestions_ref.child(parentId).get()
         time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
-        wizard_suggestions_ref.push().set({
-            "text": json['text'],
-            "type": suggType,
-            "parentA": {
-                "parentId": parentIdA,
-                "type": json['parentType'],
-                "text": json['parentText']
-            },
-            "timestamp": time
-        })
+        for text in json['text']:
+            suggestionKey = suggestions_ref.push().key
+            suggestions_ref.child(suggestionKey).set({
+                "text": text,
+                "type": suggType,
+                "parent_Id": parentId,
+                "parent_type": json['parentType'],
+                # DB stores the parent text at time of CREATION
+                "parent_text": json['parentText'],
+                "status": 1,
+                "time_created": time
+            })
+            widgets_with_suggestions_ref.child(parentId + '/' + suggestionKey).set({'status' : 1})
+
+        if not bool(currSuggestions):
+            emit("addWidget", json,
+                to=json['board_id'], include_self=False)
+
     board_ref = ref.child('boards/' + json['board_id'])
     board = board_ref.get()
-    print(board)
-    print('suggestion_cnt' in board)
     if 'suggestion_cnt' in board:
         print(board['suggestion_cnt'])
         board_ref.update({
-            "suggestion_cnt": board['suggestion_cnt']+1
+            "suggestion_cnt": board['suggestion_cnt'] + len(json['text'])
         })
-        emit('updateCnt', {"type": "add", "suggestion_cnt": board['suggestion_cnt']+1}, to=json['board_id'])
+        emit('updateCnt', {"suggestion_cnt": board['suggestion_cnt']+len(json['text'])}, to=json['board_id'])
     else:
         board_ref.update({
-            "suggestion_cnt": 1
+            "suggestion_cnt": len(json['text'])
         })
-        emit('updateCnt', {"type": "add", "suggestion_cnt": 1}, to=json['board_id'])
-    send(json, json=True, to=json['board_id'])
+        emit('updateCnt', {"suggestion_cnt": len(json['text'])}, to=json['board_id'])
+    #json['suggestionKeys'] = suggestionKeys
+    # print(json)
+
+
+@socketio.on('removeSuggestion')
+def remove_suggestion(json):
+    suggId = json['sugg_DbId']
+    widgets_with_suggestions_ref = ref.child(
+        'widgets_with_suggestions/' + json['board_id'])
+    if json['type']=='Note':
+        widgets_with_suggestions_ref.child(json['parent_Id'] + '/' + suggId).delete()
+    elif json['type'] == 'Line':
+        widgets_with_suggestions_ref.child(json['parentA_Id'] + '_' + json['parentB_Id'] +'/' + suggId).delete()
+    suggestions_ref = ref.child('suggestions/' + json['board_id'])
+    time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+    suggestions_ref.child(suggId).update({
+        'status': 5,
+        'time_updated': time
+    })
+    board_ref = ref.child('boards/' + json['board_id'])
+    board = board_ref.get()
+    board_ref.update({
+        "suggestion_cnt": board['suggestion_cnt'] - 1
+    })
+    emit('updateCnt', {"suggestion_cnt": board['suggestion_cnt']-1}, to=json['board_id'])
+    emit('removeSuggestion', json, to=json['board_id'], include_self=False)
+
+@socketio.on('queriedSuggestion')
+def query_suggestion(json):
+    suggId = json['sugg_DbId']
+    suggestions_ref = ref.child('suggestions/' + json['board_id'])
+    time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+    currStatus = suggestions_ref.child(suggId + '/status').get()
+    suggestions_ref.child(suggId).update({
+        'status': max(4, currStatus),
+        'time_updated': time
+    })
+    emit('queriedSuggestion', json, to=json['board_id'], include_self=False)
 
 
 @socketio.on('json')
 def handle_widgets(json):
-    send(json, json=True, to=json['board_id'])
+    emit("addWidget", json, to=json['board_id'])
 
 
 @socketio.on('connectToRoom')
@@ -373,25 +424,24 @@ def connect_to_room(json):
     room = json['board_id']
     join_room(room)
     print("Joined " + room)
-    if len(room)==12:
-        board_ref = ref.child('boards/' + json['board_id'])
-        return board_ref.get()
     return 'Connected to room!'
 
 
 @socketio.on('suggestionClicked')
 def update_suggestion_count(json):
-    board_ref = ref.child('boards/' + json['board_id'])
-    board = board_ref.get()
-    board_ref.update({
-        "suggestion_cnt": board['suggestion_cnt']-1
-    })
-    print('updated suggestion cnt!')
+    if json['type'] == 'remove':
+        board_ref = ref.child('boards/' + json['board_id'])
+        board = board_ref.get()
+        board_ref.update({
+            "suggestion_cnt": board['suggestion_cnt']-1
+        })
+
     emit('updateCnt', {
-        "type": json['type'], 
+        "type": json['type'],
         "suggestion_cnt": board['suggestion_cnt']-1,
         "suggestion_id": json['suggestion_id']
-        }, to=json['board_id'])
+    }, to=json['board_id'])
+
 
 @socketio.on('popup')
 def send_popup_data(json):
@@ -411,7 +461,6 @@ def send_popup_data(json):
         })
 
 
-
 @socketio.on('showSidebar')
 def change_sidebar(json):
     print(json)
@@ -423,6 +472,15 @@ def change_sidebar(json):
     print(json)
     emit('hideSidebar', json, to=json['boardId'])
 
+@socketio.on('getIssuedSuggestion')
+def get_issued_suggestion(json):
+    emit('getIssuedSuggestion', json, to=json['boardId'])
+
+@socketio.on('sidebarOpened')
+def store_sidebar_(json):
+    sidebar_ref = ref.child('sidebar_opened/' + json['board_id'])
+    time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+    sidebar_ref.push({'time': time})
 
 # FLASK ROUTING
 @app.route('/')
@@ -450,12 +508,44 @@ def wizard_phrases():
     return render_template('wizardPhrases.html')
 
 
+@app.route('/suggestions', methods=['GET', 'POST'])
+def active_suggestions():
+    if request.method == 'GET':
+        if 'sugg_id' in request.args:
+            suggestions_ref = ref.child(
+                'suggestions/' + request.args.get('boardId') + '/' + request.args.get('sugg_id'))
+            suggestions = suggestions_ref.get()
+        elif 'parent_id' in request.args:
+            suggestions_ref = ref.child(
+                'widgets_with_suggestions/' + request.args.get('boardId') + '/' + request.args.get('parent_id'))
+            
+            suggestions = suggestions_ref.get()
+        else:
+            suggestions_ref = ref.child(
+                'suggestions/' + request.args.get('boardId'))
+            suggestions = suggestions_ref.order_by_child(
+                'status').end_at(4).get()
+        return jsonify(suggestions)
+    elif request.method == 'POST':
+        json = request.get_json()
+        suggestions_ref = ref.child('suggestions/' + json['board_id'])
+        suggId = json['sugg_DbId']
+        currStatus = suggestions_ref.child(suggId + '/status').get()
+        time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+       
+        suggestions_ref.child(suggId).update({
+            'status': max(json['status'], currStatus),
+            'time_updated': time
+        })
+        return 'Success', 200
+
+
 @app.route('/studyDesign', methods=['GET', 'POST'])
 def test1():
     # POST request
     board_ref = ref.child('boards/' + request.args.get('boardId'))
-    json = request.get_json()
     if request.method == 'POST':
+        json = request.get_json()
         time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
         board_ref.update({
             "studyType": json['studyType'],
@@ -467,6 +557,7 @@ def test1():
     # GET request
     else:
         message = board_ref.get()
+        print(message)
         return jsonify(message)  # serialize and use JSON headers
 
 

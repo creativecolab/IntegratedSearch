@@ -6,7 +6,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   await splitScreen()
 });
 
-async function splitScreen(){
+async function splitScreen() {
   chrome.storage.sync.set({ 'pluginInstalled': false });
   chrome.storage.sync.set({ 'onMiroBoard': '' });
   chrome.storage.sync.set({ 'MiroBoardId': '' });
@@ -47,6 +47,7 @@ async function checkTab(tabId, changeInfo, tab) {
   if (changeInfo.url == null || changeInfo.url == 'chrome://newtab') return;
 
   chrome.storage.sync.get(['onMiroBoard'], async function (result) {
+    console.log(result.onMiroBoard)
     if (result.onMiroBoard == tabId) {
       if (! /^https?\:\/\/miro\.com\/app\/board\/.+\=\//.test(changeInfo.url)) {
         chrome.storage.sync.set({ 'onMiroBoard': '' });
@@ -60,8 +61,10 @@ async function checkTab(tabId, changeInfo, tab) {
       return
     }
   })
+  console.log(changeInfo.url)
 
   if (changeInfo.url == 'https://miro.com/app/dashboard/') {
+    chrome.storage.sync.set({ 'reachedMiroBoard': false });
     chrome.storage.sync.get(['pluginInstalled'], async function (result) {
       if (!result.pluginInstalled) {
         await installPlugin(tabId, changeInfo, tab)
@@ -69,8 +72,18 @@ async function checkTab(tabId, changeInfo, tab) {
     })
 
   } else if (/^https?\:\/\/miro\.com\/app\/board\/.+\=\//.test(changeInfo.url)) {
+
     chrome.storage.sync.set({ 'onMiroBoard': tabId });
     chrome.storage.sync.set({ 'MiroBoardId': changeInfo.url.substring(27, 39) });
+    chrome.storage.sync.get(['reachedMiroBoard'], async function (result) {
+      console.log(result.reachedMiroBoard)
+      if (!result.reachedMiroBoard) {
+        chrome.storage.sync.set({ 'reachedMiroBoard': true });
+        chrome.tabs.sendMessage(tabId, {
+          reload: true
+        })
+      }
+    })
   }
 }
 
@@ -107,7 +120,8 @@ async function sendURLtoServer(tabId) {
 function sendMessage(tabId, url, boardId) {
   chrome.tabs.sendMessage(tabId, {
     url: url,
-    boardId: boardId
+    boardId: boardId,
+
   }, (response) => {
     if (chrome.runtime.lastError.message == 'Could not establish connection. Receiving end does not exist.') {
       console.log(chrome.runtime.lastError)
