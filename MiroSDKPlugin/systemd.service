@@ -1,0 +1,12 @@
+[Unit]
+Description=Reimagining Search
+After=network.target
+
+[Service]
+User=ReimaginingSearch
+WorkingDirectory=<path to your app>
+ExecStart=<app start command>
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

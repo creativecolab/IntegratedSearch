@@ -113,6 +113,7 @@ async function updateSidebar() {
 
 async function getTaskTopic() {
     let taskWidget = await miro.board.widgets.get({ metadata: { [client_id]: { type: 'Topic' } } })
+    if(taskWidget.length==0)return '';
     console.log(taskWidget[0].plainText.substring(12))
     return taskWidget[0].plainText.substring(12)
 }
@@ -451,26 +452,6 @@ function createSearchElement() {
         window.open(url, '_blank').focus()
         if ('rgb(211, 211, 211)' != this.parentNode.parentNode.parentNode.style.backgroundColor && !USER_IS_WIZARD) {
             this.parentNode.parentNode.parentNode.style.backgroundColor = '#D3D3D3'
-            // fetch('/suggestions', {
-
-            //     // Declare what type of data we're sending
-            //     headers: {
-            //         'Content-Type': 'application/json'
-            //     },
-
-            //     // Specify the method
-            //     method: 'POST',
-
-            //     // A JSON payload
-            //     body: JSON.stringify({
-            //         "board_id": board_id,
-            //         "status": 4,
-            //         "sugg_DbId": sugg_Id
-            //     })
-            // }).then((response) => {
-            //     return response.text()
-            // }).then(text => {
-            // });
             socket.emit('queriedSuggestion', {
                 board_id: board_id,
                 sugg_DbId: sugg_Id
@@ -492,8 +473,10 @@ function createRejectElement() {
         this.style.backgroundColor = 'transparent'
     })
     reject.addEventListener('click', async function (e) {
+        
         let sugg_DbId = this.parentNode.parentNode.getAttribute('id')
-
+        let suggestionCard = document.getElementById(sugg_DbId)
+        suggestionCard.remove()
         let response = await fetch('/suggestions?boardId=' + board_id + '&sugg_id=' + sugg_DbId)
         let suggestion = await response.json()
 
@@ -513,83 +496,7 @@ function createRejectElement() {
                 parent_Id: suggestion.parent_Id,
                 parentType: suggestion.parent_type
             })
-        }
-        // fetch('/suggestions', {
-
-        //     // Declare what type of data we're sending
-        //     headers: {
-        //         'Content-Type': 'application/json'
-        //     },
-
-        //     // Specify the method
-        //     method: 'POST',
-
-        //     // A JSON payload
-        //     body: JSON.stringify({
-        //         "board_id": board_id,
-        //         "status": 5,
-        //         "sugg_DbId": sugg_DbId
-        //     })
-        // }).then((response) => {
-        //     return response.text()
-        // }).then(text => {
-        //     if (text != 'Success') {
-        //         miro.showNotification('Suggestion failed to delete')
-        //     } else {
-        //         miro.showNotification('Suggestion deleted!')
-        //     }
-        // });
-        let suggestionCard = document.getElementById(sugg_DbId)
-        suggestionCard.remove()
-
-        //Test if note/line has other suggestions. If not, then remove suggestion circle
-        // console.log(suggestion)
-        // let suggResponse
-        // if (suggestion.type == 'Line') {
-        //     suggResponse = await fetch('/suggestions?boardId=' + board_id + '&parent_id=' + suggestion.parentA_Id + '_' + suggestion.parentB_Id)
-        // } else if (suggestion.type == 'Note') {
-        //     suggResponse = await fetch('/suggestions?boardId=' + board_id + '&parent_id=' + suggestion.parent_Id)
-        // }
-        // let suggSuggestions = await suggResponse.json()
-        // console.log(suggSuggestions)
-        
-        // if (suggSuggestions == null) {
-        //     if (suggestion.type == 'Line') {
-        //         let suggLine = await miro.board.widgets.get({startWidgetId: suggestion.parentA_Id, endWidgetId: suggestion.parentB_Id} ||
-        //         {startWidgetId: suggestion.parentB_Id, endWidgetId: suggestion.parentA_Id})
-        //         let suggLine_Id = suggLine[0].id
-        //         let suggCircle = await miro.board.widgets.get({metadata: {
-        //             [client_id] :{
-        //                 type: 'LineSuggestion',
-        //                 parentId: suggLine_Id,
-        //                 parentType: 'LINE'
-        //             }
-        //         }})
-        //         await miro.board.widgets.deleteById(suggestion.suggLine_Id)
-        //     } else if (suggestion.type=='Note'){
-        //         let suggCircle = await miro.board.widgets.get({metadata: {
-        //             [client_id] :{
-        //                 type: 'NoteSuggestion',
-        //                 parentId: suggestion.parent_Id,
-        //                 parentType: suggestion.parentType
-        //             }
-        //         }})
-        //         await miro.board.widgets.deleteById(suggCircle[0].id)
-        //     }
-        // }
-
-
-
-
-        // socket.emit('suggestionClicked', {
-        //     board_id: board_id,
-        //     type: 'remove',
-        //     suggestion_id: widgetid
-        // })
-
-
-        //await removePopups()
-
+        } 
     })
     return reject
 

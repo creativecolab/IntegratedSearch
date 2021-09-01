@@ -3,7 +3,7 @@ let board_id = window.location.href.substr(27, 12)
 fetch('https://90d2-47-156-139-9.ngrok.io/studyDesign?boardId=' + board_id).then(
     response => response.json()
 ).then(async function (data) {
-    if (data.studyType == 'On Board') {
+    if (data==null || data.studyType == 'On Board') {
         return
     } else {
         //Reflects how many suggestions are on the board

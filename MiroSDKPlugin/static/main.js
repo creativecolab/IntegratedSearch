@@ -116,6 +116,23 @@ async function createSuggestionLine(startWidgetID, endWidgetID, parentsAreCluste
     })
     var circleCoord = await getLineMidpoint(line[0])
     let circle = await createSuggestionCircle(circleCoord.x, circleCoord.y, line[0].id, 'LINE')
+    fetch('/suggestionCircle', {
+
+        // Declare what type of data we're sending
+        headers: {
+            'Content-Type': 'application/json'
+        },
+
+        // Specify the method
+        method: 'POST',
+
+        // A JSON payload
+        body: JSON.stringify({
+            "board_id": board_id,
+            "widget_id": startWidgetID + '_' + endWidgetID,
+            "suggCirc_Id": circle.id
+        })
+    });
     return [line[0], circle]
 }
 
@@ -155,7 +172,25 @@ async function createSuggestionCircle(x, y, parentID, parentType) {
             shapeType: miro.enums.shapeType.CIRCLE,
         }
     })
+    if (parentType != 'LINE') {
+        fetch('/suggestionCircle', {
 
+            // Declare what type of data we're sending
+            headers: {
+                'Content-Type': 'application/json'
+            },
+
+            // Specify the method
+            method: 'POST',
+
+            // A JSON payload
+            body: JSON.stringify({
+                "board_id": board_id,
+                "widget_id": parentID,
+                "suggCirc_Id": suggestionCircle[0].id
+            })
+        });
+    }
     return suggestionCircle[0]
 }
 
@@ -220,6 +255,12 @@ async function getTaskTopic() {
     return taskWidget[0].plainText.substring(12)
 }
 
+/**
+ * 
+ * @param {*} cardText 
+ * @param {*} parentText 
+ * @returns 
+ */
 function createUrlFromText(cardText, parentText) {
     let text;
     if (parentText != null) {
@@ -242,6 +283,7 @@ function createUrlFromText(cardText, parentText) {
  * Creates Pop up query window for each query suggestion after clicking on suggestion circle
  * If no suggestions left, delete suggestion circle
  * @param {String[]} parentID Contains parent widget IDs, with first ID being suggestion circle and second being line if it is cross-cluster
+ * @returns an Object containing the parentIDs in db form and an Array of shown suggestion IDs to be recorded in database
  */
 async function createPopupSearchWindow(parentID) {
 
@@ -258,7 +300,6 @@ async function createPopupSearchWindow(parentID) {
             parentText = null
         }
     } else if (suggestionCircle[0].metadata[client_id].type == 'NoteSuggestion') {
-        console.log(suggestionCircle[0].metadata[client_id].parentType)
         if (suggestionCircle[0].metadata[client_id].parentType == 'ClusterTitle') {
             let title = await miro.board.widgets.get({ id: suggestionCircle[0].metadata[client_id].parentId })
             parentText = title[0].plainText
@@ -286,6 +327,7 @@ async function createPopupSearchWindow(parentID) {
     const querySuggestions = await response.json()
 
     let index = 0
+    let suggestionIds=[];
     if (suggestionCircle[0].metadata[client_id].type == 'LineSuggestion') {
         for (const property in querySuggestions) {
             if ((querySuggestions[property].parentA_Id == parentA[0].id && querySuggestions[property].parentB_Id == parentB[0].id)
@@ -308,9 +350,14 @@ async function createPopupSearchWindow(parentID) {
                         "sugg_DbId": property
                     })
                 });
+                suggestionIds.push(property)
                 createSuggestionRow(suggestionCircleX, suggestionCircleY, parentID, querySuggestions[property].text, parentText, index, querySuggestions[property].status, property)
                 index++;
             }
+        }
+        return {
+            parent_id: suggestionLine[0].startWidgetId+ '_' + suggestionLine[0].endWidgetId,
+            suggestionIds: suggestionIds
         }
     } else if (suggestionCircle[0].metadata[client_id].type == 'NoteSuggestion') {
         for (const property in querySuggestions) {
@@ -334,15 +381,15 @@ async function createPopupSearchWindow(parentID) {
                         "sugg_DbId": property
                     })
                 });
+                suggestionIds.push(property)
                 createSuggestionRow(suggestionCircleX, suggestionCircleY, parentID, querySuggestions[property].text, parentText, index, querySuggestions[property].status, property)
                 index++;
             }
         }
-    }
-    if (index == 0) {
-        await miro.board.widgets.deleteById(parentID)
-        if (suggestionLine[0] != null) {
-            await miro.board.widgets.deleteById(suggestionLine[0].id)
+        
+        return {
+            parent_id: suggestionCircle[0].metadata[client_id].parentId,
+            suggestionIds: suggestionIds
         }
     }
 }
@@ -508,38 +555,53 @@ async function selectionClicked(event) {
         }
         let x = widgets[0].x
         let y = widgets[0].y
-        let coord;
+        let coord, popup;
 
         switch (type) {
             case 'LineSuggestion':
                 await suggestionClicked(widgets[0].id)
+                sendWidgetsToWizard()
                 removePopups()
                 let lineId = widgets[0].metadata[client_id].parentId
                 coord = {
                     x: x + 170,
                     y: y - 95
                 }
-                // socket.emit('json', {
-                //     type: 'createPopup',
-                //     x: coord.x,
-                //     y: coord.y,
-                //     text: widgets[0].metadata[client_id].text,
-                //     parentText: widgets[0].metadata[client_id].parentText,
-                //     id: widgets[0].id,
-                //     board_id: board_id
-                // })
-                createPopupSearchWindow(widgets[0].id)
-
+                popup = await createPopupSearchWindow(widgets[0].id)
+                
+                fetch('/suggestionCircleClicked', {
+                    method: "POST",
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        board_id: board_id,
+                        parent_id: popup.parent_id,
+                        suggestionIds: popup.suggestionIds,
+                    })
+                })
 
                 break;
             case 'NoteSuggestion':
                 await suggestionClicked(widgets[0].id)
+                sendWidgetsToWizard()
                 removePopups()
                 coord = {
                     x: x + 170,
                     y: y - 95
                 }
-                createPopupSearchWindow(widgets[0].id)
+                popup = await createPopupSearchWindow(widgets[0].id)
+                fetch('/suggestionCircleClicked', {
+                    method: "POST",
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        board_id: board_id,
+                        parent_id: popup.parent_id,
+                        suggestionIds: popup.suggestionIds,
+                    })
+                })
 
 
                 break;
@@ -552,7 +614,7 @@ async function selectionClicked(event) {
                     socket.emit('removeSuggestion', {
                         type: 'Line',
                         board_id: board_id,
-                        "sugg_DbId": sugg_DbId,
+                        sugg_DbId: sugg_DbId,
                         parentA_Id: suggestion.parentA_Id,
                         parentB_Id: suggestion.parentB_Id
                     })
@@ -560,36 +622,11 @@ async function selectionClicked(event) {
                     socket.emit('removeSuggestion', {
                         type: 'Note',
                         board_id: board_id,
-                        "sugg_DbId": sugg_DbId,
+                        sugg_DbId: sugg_DbId,
                         parent_Id: suggestion.parent_Id,
                         parentType: suggestion.parent_type
                     })
                 }
-                // fetch('/suggestions', {
-
-                //     // Declare what type of data we're sending
-                //     headers: {
-                //         'Content-Type': 'application/json'
-                //     },
-
-                //     // Specify the method
-                //     method: 'POST',
-
-                //     // A JSON payload
-                //     body: JSON.stringify({
-                //         "board_id": board_id,
-                //         "status": 5,
-                //         "sugg_DbId": sugg_DbId
-                //     })
-                // }).then((response) => {
-                //     return response.text()
-                // }).then(text => {
-                //     if (text != 'Success') {
-                //         miro.showNotification('Suggestion failed to delete')
-                //     } else {
-                //         miro.showNotification('Suggestion deleted!')
-                //     }
-                // });
                 let suggestionRow = await miro.board.widgets.get({ id: widgets[0].metadata[client_id].parentId })
                 await removePopups()
                 createPopupSearchWindow(suggestionRow[0].metadata[client_id].parentId)
@@ -773,12 +810,9 @@ async function addSuggestionFromWizard(widget) {
 async function sendWidgetsToWizard() {
     let widgets = await miro.board.widgets.get();
     socket.emit('widgets', { boardId: board_id, widgets: widgets })
-
-    let viewport = await miro.board.viewport.get()
-    let viewportwidgets = await miro.board.widgets.__getIntersectedObjects(viewport)
-    socket.emit('viewportWidgets', { boardId: board_id, widgets: viewportwidgets })
-
-    setTimeout(sendWidgetsToWizard, 60000);
+    // let viewport = await miro.board.viewport.get()
+    // let viewportwidgets = await miro.board.widgets.__getIntersectedObjects(viewport)
+    // socket.emit('viewportWidgets', { boardId: board_id, widgets: viewportwidgets })
 }
 
 async function getStudyDesign() {
@@ -818,43 +852,63 @@ miro.onReady(async () => {
         miro.addListener(miro.enums.event.WIDGETS_TRANSFORMATION_UPDATED, widgetMoved)
         await sendWidgetsToWizard()
         socket.on('removeSuggestion', async (data) => {
-            //console.log(data)
+            console.log(data)
+            let suggResponse;
             if (data.type == 'Line') {
                 suggResponse = await fetch('/suggestions?boardId=' + board_id + '&parent_id=' + data.parentA_Id + '_' + data.parentB_Id)
             } else if (data.type == 'Note') {
                 suggResponse = await fetch('/suggestions?boardId=' + board_id + '&parent_id=' + data.parent_Id)
             }
             let suggSuggestions = await suggResponse.json()
-            if (suggSuggestions == null) {
+            console.log(suggSuggestions)
+            if (suggSuggestions==null || Object.keys(suggSuggestions).length <=1) {
                 if (data.type == 'Line') {
-                    let suggLine = await miro.board.widgets.get({ startWidgetId: data.parentA_Id, endWidgetId: data.parentB_Id } ||
-                        { startWidgetId: data.parentB_Id, endWidgetId: data.parentA_Id })
-                    let suggLine_Id = suggLine[0].id
                     let suggCircle = await miro.board.widgets.get({
-                        metadata: {
-                            [client_id]: {
-                                type: 'LineSuggestion',
-                                parentId: suggLine_Id,
-                                parentType: 'LINE'
-                            }
-                        }
+                        id: suggSuggestions.suggCirc_Id
                     })
-                    await miro.board.widgets.deleteById(suggLine_Id)
+                    fetch('/suggestionCircle', {
+
+                        // Declare what type of data we're sending
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                
+                        // Specify the method
+                        method: 'POST',
+                
+                        // A JSON payload
+                        body: JSON.stringify({
+                            "board_id": board_id,
+                            "widget_id": data.parentA_Id + '_' + data.parentB_Id,
+                            "suggCirc_Id": null
+                        })
+                    });
+                    await miro.board.widgets.deleteById(suggCircle[0].metadata[client_id].parentId)
                     await miro.board.widgets.deleteById(suggCircle[0].id)
+
                 } else if (data.type == 'Note') {
-                    let suggCircle = await miro.board.widgets.get({
-                        metadata: {
-                            [client_id]: {
-                                type: 'NoteSuggestion',
-                                parentId: data.parent_Id,
-                                parentType: data.parentType
-                            }
-                        }
-                    })
-                    await miro.board.widgets.deleteById(suggCircle[0].id)
+                    fetch('/suggestionCircle', {
+
+                        // Declare what type of data we're sending
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+            
+                        // Specify the method
+                        method: 'POST',
+            
+                        // A JSON payload
+                        body: JSON.stringify({
+                            "board_id": board_id,
+                            "widget_id": data.parent_Id,
+                            "suggCirc_Id": null
+                        })
+                    });
+                    await miro.board.widgets.deleteById(suggSuggestions.suggCirc_Id)
                 }
             }
         })
+
 
         socket.on('addWidget', async (data) => {
             if (mode != null) {
@@ -864,6 +918,8 @@ miro.onReady(async () => {
                     await createSuggestionLine(data.startWidgetId, data.endWidgetId, (data.parentAtype == 'ClusterTitle' && data.parentBtype == 'ClusterTitle'))
                 } else if (data.type = 'createPopup') {
                     await createPopupSearchWindow(data.id)
+                } else if (data.type == 'updateSuggestionCircle') {
+                    await updateSuggestionCircle(data.parentId, data.parentType)
                 }
             }
         })
@@ -903,6 +959,28 @@ miro.onReady(async () => {
             }).then(text => {
             });
         })
+
+        socket.on('updateSuggCircle', async (data) =>{
+            let response;
+            if (data.type == 'addSuggestionLine') {
+                response = await fetch('/suggestionCircle?board_id=' + board_id + '&parent_id=' + data.startWidgetId + '_' + data.endWidgetId)
+            } else if (data.type == 'addSuggestionCircle') {
+                response = await fetch('/suggestionCircle?board_id=' + board_id + '&parent_id=' + data.parentId)
+            }
+            let circId = await response.json()
+            console.log(circId)
+            await miro.board.widgets.update({
+                id: circId['suggCirc_Id'],
+                text: '🔎︎',
+                style: {
+                    backgroundColor: '#008000',
+                    borderOpacity: 1,
+                    fontSize: 20,
+                    shapeType: miro.enums.shapeType.CIRCLE,
+                }
+            })
+
+        })
         if (mode == modes.ENABLE_WIDGETS) {
 
             miro.addListener(miro.enums.event.SELECTION_UPDATED, selectionClicked)
@@ -925,7 +1003,7 @@ miro.onReady(async () => {
                 let customWidgets = widgets.filter((widget) => (Object.keys(widget.metadata).length != 0)
                     && (customWidgetTypes.includes(widget.metadata[client_id].type)))
                 await hideWidgets(customWidgets)
- 
+
             }
             socket.on('showSidebar', async (data) => {
                 openSidebar()

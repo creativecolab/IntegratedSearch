@@ -23,7 +23,7 @@ function changeQueryDiv(queryText){
 socket.on('json', async (data) => {
     let type = data['type']
     let nplist = data['np']
-    if(Object.keys(nplist).length === 0){
+    if(nplist!=null && Object.keys(nplist).length === 0){
         return
     }
     let url = data['url']
@@ -34,15 +34,29 @@ socket.on('json', async (data) => {
         case 'suggestions':
             changeQueryDiv(data['query'])
 
-            var suggestionsList = document.getElementById('suggestions')
-            suggestionsList.innerHTML=''
-            for (var i = 0; i < 10; i++) {
-                let np = Object.keys(nplist)[i]
-                if(nplist[np]==null){return}
+            var peoplealsoaskedList = document.getElementById('peoplealsoasked')
+            var relatedsearcheslist = document.getElementById('relatedsearches')
+            var autocompleteList = document.getElementById('autocomplete')
+            peoplealsoaskedList.innerHTML=''
+            relatedsearcheslist.innerHTML=''
+            autocompleteList.innerHTML = ''
+            for (let query of data['commquestions']) {
                 node = document.createElement("li");
-                textnode = document.createTextNode(np);
+                textnode = document.createTextNode(query);
                 node.appendChild(textnode);
-                suggestionsList.appendChild(node);
+                peoplealsoaskedList.appendChild(node);
+            }
+            for (let query of data['relsearches']) {
+                node = document.createElement("li");
+                textnode = document.createTextNode(query);
+                node.appendChild(textnode);
+                relatedsearcheslist.appendChild(node);
+            }
+            for (let query of data['autocomplete']){
+                node = document.createElement("li");
+                textnode = document.createTextNode(query.slice(1, -1));
+                node.appendChild(textnode);
+                autocompleteList.appendChild(node);
             }
             break;
         case 'snippets':

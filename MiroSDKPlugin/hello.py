@@ -1,3 +1,4 @@
+from enum import auto
 from typing import Text
 from flask import Flask, render_template, jsonify, request, send_file
 from flask_cors import CORS, cross_origin
@@ -17,6 +18,7 @@ import math
 import re
 import signal
 import threading
+import urllib.request
 
 import logging
 
@@ -79,19 +81,36 @@ def get_query_results_descriptions(beautifulSoupObj):
 
 
 def get_query_common_questions(beautifulSoupObj):
-    texts = set()
+    texts = []
     for link in beautifulSoupObj.find_all('div', class_='Lt3Tzc'):
-        texts.add(link.get_text())
+        texts.append(link.get_text())
     return texts
 
 # Get query related searches from Google search page
 
 
 def get_query_related_searches(beautifulSoupObj):
-    texts = set()
+    texts = []
     for link in beautifulSoupObj.find_all('div', class_='BNeawe s3v9rd AP7Wnd lRVwie'):
-        texts.add(link.get_text())
+        texts.append(link.get_text())
     return texts
+
+def get_query_autocomplete(googleurl):
+    startIndex = googleurl.find('=')
+    endIndex = googleurl.find('&')
+    queryString = googleurl[startIndex+1: endIndex]
+    target_url = 'https://www.google.com/complete/search?q=' + queryString+'+&pq='+queryString+'&client=chrome'
+    ##Naive, assuming search query has no brackets
+    autocompletesuggestions=''
+    for line in urllib.request.urlopen(target_url):
+        googleautosugg=line.decode('utf-8')
+        startBracket = googleautosugg.index('[', 1)
+        endBracket = googleautosugg.index(']', 1)
+        autocompletesuggestions = googleautosugg[startBracket+1: endBracket]
+    autocompletesuggestions.replace('"', "" )
+    return autocompletesuggestions.split(',')
+
+
 
 
 def getQueryFromURL(googleurl):
@@ -216,11 +235,15 @@ def getNPmiro(boardWidgetsTexts):
 def scrape_search(json):
     room = 'wizard' + json['boardId']
     websitedom = scrape_website(json['url'])
-    NPsuggestions = getNPSuggestions(websitedom)
+    commquestions = get_query_common_questions(websitedom)
+    relsearches = get_query_related_searches(websitedom)
+    autocomplete = get_query_autocomplete(json['url'])
     npsuggestions = {'type': 'suggestions',
                      'url': json['url'],
                      'query': getQueryFromURL(json['url']),
-                     'np': NPsuggestions}
+                     'commquestions': commquestions,
+                     'relsearches': relsearches,
+                     'autocomplete': autocomplete}
     browser_history_ref = ref.child('browser_history/' + json['boardId'])
     time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
 
@@ -233,8 +256,9 @@ def scrape_search(json):
     browser_history_ref.push().set({
         "url": json['url'],
         "timestamp": time,
-        "suggestions": NPsuggestions,
-        "snippets": NPsnippets
+        "related_searches": relsearches,
+        "people_also_ask": commquestions,
+        "autocomplete": autocomplete
     })
     send(npsnippets, json=True, to=room)
 
@@ -289,18 +313,18 @@ def wizard_widget_texts(json):
     send(npmiro, json=True, to=room)
 
 
-@socketio.on('viewportWidgets')
-def store_viewport_widgets(json):
-    viewport_history_ref = ref.child('viewport_history/' + json['boardId'])
-    time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+# @socketio.on('viewportWidgets')
+# def store_viewport_widgets(json):
+#     viewport_history_ref = ref.child('viewport_history/' + json['boardId'])
+#     time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
 
-    #To clear data
-    #viewport_history_ref.delete()
+#     #To clear data
+#     #viewport_history_ref.delete()
 
-    viewport_history_ref.push().set({
-        "content": json['widgets'],
-        "timestamp": time,
-    })
+#     viewport_history_ref.push().set({
+#         "content": json['widgets'],
+#         "timestamp": time,
+#     })
 
 
 @socketio.on('addSuggestion')
@@ -309,7 +333,6 @@ def add_suggestion(json):
         'suggestions/' + json['board_id'])
     widgets_with_suggestions_ref = ref.child(
         'widgets_with_suggestions/' + json['board_id'])
-    #suggestionKeys = []
     if json['type'] == 'addSuggestionLine':
         suggType = 'Line'
         parentIdA = json['startWidgetId']
@@ -335,8 +358,10 @@ def add_suggestion(json):
 
             widgets_with_suggestions_ref.child(
                 parentIdA+'_' + parentIdB + '/' +suggestionKey ).set({'status': 1})
-        if not bool(currSuggestions):
+        if not bool(currSuggestions) or 'suggCirc_Id' not in currSuggestions:
             emit("addWidget", json, to=json['board_id'], include_self=False)
+        else:
+            emit("updateSuggCircle", json, to=json['board_id'], include_self=False)
 
     else:
         suggType = 'Note'
@@ -357,9 +382,10 @@ def add_suggestion(json):
             })
             widgets_with_suggestions_ref.child(parentId + '/' + suggestionKey).set({'status' : 1})
 
-        if not bool(currSuggestions):
-            emit("addWidget", json,
-                to=json['board_id'], include_self=False)
+        if not bool(currSuggestions) or 'suggCirc_Id' not in currSuggestions:
+            emit("addWidget", json, to=json['board_id'], include_self=False)
+        else:
+            emit("updateSuggCircle", json, to=json['board_id'], include_self=False)
 
     board_ref = ref.child('boards/' + json['board_id'])
     board = board_ref.get()
@@ -507,6 +533,10 @@ def wizard_sidebar():
 def wizard_phrases():
     return render_template('wizardPhrases.html')
 
+@app.route('/startPage.html')
+def start_page():
+    return render_template('startPage.html')
+
 
 @app.route('/suggestions', methods=['GET', 'POST'])
 def active_suggestions():
@@ -532,12 +562,49 @@ def active_suggestions():
         suggId = json['sugg_DbId']
         currStatus = suggestions_ref.child(suggId + '/status').get()
         time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
-       
-        suggestions_ref.child(suggId).update({
-            'status': max(json['status'], currStatus),
-            'time_updated': time
+        if 'suggCirc_Id' in json:
+            suggestions_ref.child(suggId).update({
+                'status': max(json['status'], currStatus),
+                'suggCirc_Id': json['suggCirc_Id'],
+                'time_updated': time
+            })
+        else:
+            suggestions_ref.child(suggId).update({
+                'status': max(json['status'], currStatus),
+                'time_updated': time
+            })
+        return 'Success', 200
+
+@app.route('/suggestionCircleClicked', methods=['POST'])
+def suggestion_circle_clicked():
+    if request.method == 'POST':
+        json = request.get_json()
+        time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+        json['time'] = time
+        suggestion_circle_clicked_ref = ref.child('suggestion_circle_clicked/' + json['board_id'] + '/' + json['parent_id'])
+        key = suggestion_circle_clicked_ref.push().key
+        suggestion_circle_clicked_ref.child(key).set(json['suggestionIds'])
+        suggestion_circle_clicked_ref.child(key).update({'time': time})
+    return 'Success', 200
+
+@app.route('/suggestionCircle', methods=['POST', 'GET'])
+def add_suggestion_circle():
+    if request.method=='POST':
+
+        json = request.get_json()
+        widgets_with_suggestions_ref = ref.child(
+            'widgets_with_suggestions/' + json['board_id'])
+        print(json)
+        widgets_with_suggestions_ref.child(json['widget_id']).update({
+            'suggCirc_Id': json['suggCirc_Id']
         })
         return 'Success', 200
+    else:
+        widgets_with_suggestions_ref = ref.child(
+            'widgets_with_suggestions/' + request.args.get('board_id') + '/' + request.args.get('parent_id'))
+        suggCirc_Id = widgets_with_suggestions_ref.get()
+        print(suggCirc_Id)
+        return jsonify(suggCirc_Id)
 
 
 @app.route('/studyDesign', methods=['GET', 'POST'])

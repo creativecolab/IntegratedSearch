@@ -17,7 +17,7 @@ async function splitScreen() {
   let authWindow = await chrome.windows.create({
     type: 'popup',
     state: 'maximized',
-    url: 'https://miro.com/welcome/WldJOVVXQVowM000ZVJQMGVhU0x0SlM3Z0FVRE5HS3c3SzRwNHN5RkFKZ3VMMXRTNDNmaTVHMzJFaVFWSEhZa3wzMDc0NDU3MzYwOTE3Mjk0MzIw'
+    url: 'https://90d2-47-156-139-9.ngrok.io/startPage.html'
   });
   let maxWidth = authWindow.width
   let maxHeight = authWindow.height
@@ -44,7 +44,7 @@ chrome.tabs.onRemoved.addListener(checkRemoved)
 
 async function checkTab(tabId, changeInfo, tab) {
 
-  if (changeInfo.url == null || changeInfo.url == 'chrome://newtab') return;
+  if (changeInfo.url == null || changeInfo.url.includes('://newtab')) return;
 
   chrome.storage.sync.get(['onMiroBoard'], async function (result) {
     console.log(result.onMiroBoard)
