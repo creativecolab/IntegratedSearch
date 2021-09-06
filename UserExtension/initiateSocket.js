@@ -1,4 +1,4 @@
-var socket = io('https://cdb1-47-156-139-9.ngrok.io')
+var socket = io('https://creativesearch.ucsd.edu')
 let currTab = window.location.href
 let query = currTab.match(/^https?\:\/\/www\.google\.com\/search\?q\=[^\&]+\&/)
 if(query==null){

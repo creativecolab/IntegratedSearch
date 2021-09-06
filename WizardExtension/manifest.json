@@ -1,7 +1,7 @@
 {
     "name": "Reimagining Search - Wizard",
     "description": "For Wizard Study",
-    "version": "0.1",
+    "version": "1.0",
     "manifest_version": 3,
     "content_scripts": [ {
         "matches": ["http://*/*", "https://*/*"],

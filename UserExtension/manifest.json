@@ -1,7 +1,7 @@
 {
     "name": "Reimagining Search",
     "description": "Combining note-taking in Miro with Query Suggestions",
-    "version": "0.1",
+    "version": "1.0",
     "manifest_version": 3,
     "action": {
         "default_title": "Click to open Miro and Google"
@@ -22,9 +22,6 @@
         "service_worker": "/background.js"
     },
     "host_permissions": ["*://*/*"],
-    "externally_connectable": {
-        "matches": ["https://0d1c-47-156-139-9.ngrok.io/"]
-    },
     "permissions": [
         "activeTab",
         "tabs",

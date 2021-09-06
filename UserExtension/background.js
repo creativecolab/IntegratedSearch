@@ -17,7 +17,7 @@ async function splitScreen() {
   let authWindow = await chrome.windows.create({
     type: 'popup',
     state: 'maximized',
-    url: 'https://90d2-47-156-139-9.ngrok.io/startPage.html'
+    url: 'https://creativesearch.ucsd.edu/startPage.html'
   });
   let maxWidth = authWindow.width
   let maxHeight = authWindow.height

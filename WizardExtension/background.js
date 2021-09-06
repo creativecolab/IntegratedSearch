@@ -2,7 +2,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   chrome.storage.local.set({'pluginInstalled': false });
   let currWindow = await chrome.windows.getCurrent()
   let queryTab = await chrome.tabs.create({
-    url: 'https://90d2-47-156-139-9.ngrok.io/wizardPhrases.html'
+    url: 'https://creativesearch.ucsd.edu/wizardPhrases.html'
   })
   let authWindow = await chrome.windows.create({
     type: 'normal',

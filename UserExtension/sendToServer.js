@@ -1,4 +1,4 @@
-var socket = io('https://90d2-47-156-139-9.ngrok.io')
+var socket = io('https://creativesearch.ucsd.edu')
 
 chrome.runtime.onMessage.addListener(
     function (request, sender, sendResponse) {
@@ -7,7 +7,6 @@ chrome.runtime.onMessage.addListener(
             return;
         }
         if (/^https?\:\/\/www\.google\.com\/search\?q\=[^\&]+/.test(request.url)) {
-            console.log(request.url.match(/^https?\:\/\/www\.google\.com\/search\?q\=[^\&]+/))
             if (request.url.match(/^https?\:\/\/www\.google\.com\/search\?q\=[^\&]+/)[0] == request.url) {
                 
                 socket.emit('getIssuedSuggestion', request)
