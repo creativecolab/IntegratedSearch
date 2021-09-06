@@ -248,11 +248,21 @@ function createHTMLFromText(text, parentText) {
 }
 
 async function getTaskTopic() {
-    let taskWidget = await miro.board.widgets.get({ metadata: { [client_id]: { type: 'Topic' } } })
-    if (taskWidget.length == 0) {
-        return ''
+    let response = await fetch('/studyDesign?boardId=' + board_id)
+    let studyDesign = await response.json()
+    if(studyDesign==null) {
+        topic_task=''
+        return
+    }else{
+        if(studyDesign.topicTask=='COVID-19'){
+            topic_task='Environmental Impacts of COVID-19'
+        }else if (studyDesign.topicTask=='Space Travel'){
+            topic_task='Futurization of Space Travel'
+        }else{
+            topic_task=''
+        }
+        return
     }
-    return taskWidget[0].plainText.substring(12)
 }
 
 /**
@@ -315,10 +325,6 @@ async function createPopupSearchWindow(parentID) {
         }
     } else {
         parentText = null
-    }
-    console.log(parentText)
-    if (topic_task == null) {
-        topic_task = await getTaskTopic()
     }
 
     let suggestionCircleX = suggestionCircle[0].x;
@@ -810,9 +816,6 @@ async function addSuggestionFromWizard(widget) {
 async function sendWidgetsToWizard() {
     let widgets = await miro.board.widgets.get();
     socket.emit('widgets', { boardId: board_id, widgets: widgets })
-    // let viewport = await miro.board.viewport.get()
-    // let viewportwidgets = await miro.board.widgets.__getIntersectedObjects(viewport)
-    // socket.emit('viewportWidgets', { boardId: board_id, widgets: viewportwidgets })
 }
 
 async function getStudyDesign() {
@@ -843,6 +846,7 @@ miro.onReady(async () => {
     socket.emit('connectToRoom', { board_id: board_id })
     userId = await miro.currentUser.getId()
     USER_IS_WIZARD = wizardIds.includes(userId)
+    topic_task = await getTaskTopic()
 
     await removePopups()
 

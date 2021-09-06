@@ -181,7 +181,6 @@ async function getStudyDesign(){
     return await fetch('/studyDesign?boardId=' + board_id).then(
         response => response.json()
     ).then(function (data) {
-        console.log('HTTP Request received!');
         if(user_id==wizardIds[0]){
             let studyType = document.getElementById('studyType')
             studyType.value = data.studyType
