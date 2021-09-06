@@ -6,7 +6,6 @@ var cardType = ['NoteSuggestion', 'LineSuggestion']
 var socket = io();
 var topic_task;
 var board_id;
-var socket = io()
 
 const wizardIds = ['3074457360917294320', '3074457360807760467']
 
@@ -415,6 +414,7 @@ function createSearchElement() {
      * Also, turns background color of card to dark gray to indicate it has been clicked
      */
     search.addEventListener('click', async function (e) {
+        sendWidgetsToWizard()
         let cardText = this.parentNode.childNodes[1].innerHTML
         let sugg_Id = this.parentNode.parentNode.parentNode.parentNode.getAttribute('id')
         let response = await fetch('/suggestions?boardId=' + board_id + '&sugg_id=' + sugg_Id)
@@ -533,4 +533,9 @@ async function removePopups() {
         || (widget.metadata[client_id].type == 'Accept')
         || (widget.metadata[client_id].type == 'Reject'))
     await miro.board.widgets.deleteById(widgets)
+}
+
+async function sendWidgetsToWizard() {
+    let widgets = await miro.board.widgets.get();
+    socket.emit('widgets', { boardId: board_id, widgets: widgets })
 }
